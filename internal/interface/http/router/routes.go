@@ -11,7 +11,9 @@ func SetupRoutes(engine *gin.Engine,
 	walletHandler *handler.WalletHandler,
 	productHandler *handler.ProductHandler,
 	stockHandler *handler.StockHandler,
-	orderHandler *handler.OrderHandler) {
+	orderHandler *handler.OrderHandler,
+	authorizationMiddleware gin.HandlerFunc,
+) {
 
 	// API versioning
 	api := engine.Group("/api")
@@ -19,13 +21,13 @@ func SetupRoutes(engine *gin.Engine,
 
 	// Setup module routes
 	SetupUserRoutes(v1, userHandler)
-	SetupWalletRoutes(v1, walletHandler)
+	SetupWalletRoutes(v1, walletHandler, authorizationMiddleware)
 	SetupProductRoutes(v1, productHandler)
 	SetupStockRoutes(v1, stockHandler)
 	SetupOrderRoutes(v1, orderHandler)
 
-	// Health check endpoint
-	engine.GET("/health", func(c *gin.Context) {
+	// Health check endpoint (renamed to avoid conflict with metrics /health)
+	engine.GET("/api/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"service": "scalable-auction-system",

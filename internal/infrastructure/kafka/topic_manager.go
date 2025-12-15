@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -29,7 +30,9 @@ func (tm *TopicManager) Connect(ctx context.Context) error {
 		return fmt.Errorf("no brokers specified")
 	}
 
-	conn, err := kafka.DialLeader(ctx, "tcp", tm.brokers[0], "", 0)
+	// Use kafka.Dial to create a general connection to the broker
+	// This doesn't require a specific topic and is suitable for admin operations
+	conn, err := kafka.Dial("tcp", tm.brokers[0])
 	if err != nil {
 		return fmt.Errorf("failed to connect to kafka broker: %w", err)
 	}
@@ -125,10 +128,11 @@ func (tm *TopicManager) TopicExists(ctx context.Context, topicName string) (bool
 	partitions, err := tm.conn.ReadPartitions(topicName)
 	if err != nil {
 		// If error contains "unknown topic", it means topic doesn't exist
-		if fmt.Sprintf("%v", err) == "unknown topic or partition" {
+
+		if strings.Contains(strings.ToLower(fmt.Sprintf("%v", err)), "unknown topic or partition") {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to read partitions for topic %s: %w", topicName, err)
+		return false, fmt.Errorf("failed to read partitions for topic %s: %w\n", topicName, err)
 	}
 
 	return len(partitions) > 0, nil

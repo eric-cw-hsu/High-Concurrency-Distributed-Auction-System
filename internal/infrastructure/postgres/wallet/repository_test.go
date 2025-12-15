@@ -62,10 +62,10 @@ func (suite *RepositoryTestSuite) SetupTest() {
 		"550e8400-e29b-41d4-a716-446655440005",
 	}
 
-	for i, userId := range testUsers {
+	for i, userID := range testUsers {
 		_, err := suite.dbHelper.DB.ExecContext(context.Background(),
 			`INSERT INTO users (id, email, password_hash, name) VALUES ($1, $2, $3, $4)`,
-			userId,
+			userID,
 			fmt.Sprintf("test%d@example.com", i),
 			"hashedpassword",
 			fmt.Sprintf("Test User %d", i),
@@ -76,11 +76,11 @@ func (suite *RepositoryTestSuite) SetupTest() {
 
 func (suite *RepositoryTestSuite) TestSaveAndGetWalletAggregate() {
 	ctx := context.Background()
-	userId := "550e8400-e29b-41d4-a716-446655440000" // Valid UUID format
+	userID := "550e8400-e29b-41d4-a716-446655440000" // Valid UUID format
 
 	// Create a new wallet aggregate
-	aggregate := wallet.CreateNewWallet(userId)
-	aggregate.Id = "wallet-550e8400-e29b-41d4-a716-446655440000" // Set ID for testing
+	aggregate := wallet.CreateNewWallet(userID)
+	aggregate.ID = "wallet-550e8400-e29b-41d4-a716-446655440000" // Set ID for testing
 	_ = aggregate.AddFund(100.0, "Initial deposit")
 
 	// Save the aggregate
@@ -88,25 +88,25 @@ func (suite *RepositoryTestSuite) TestSaveAndGetWalletAggregate() {
 	require.NoError(suite.T(), err)
 
 	// Retrieve the aggregate
-	retrievedAggregate, err := suite.repository.GetByUserId(ctx, userId)
+	retrievedAggregate, err := suite.repository.GetByUserID(ctx, userID)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), retrievedAggregate)
 
 	// Verify the aggregate
-	assert.Equal(suite.T(), aggregate.Id, retrievedAggregate.Id)
-	assert.Equal(suite.T(), aggregate.UserId, retrievedAggregate.UserId)
+	assert.Equal(suite.T(), aggregate.ID, retrievedAggregate.ID)
+	assert.Equal(suite.T(), aggregate.UserID, retrievedAggregate.UserID)
 	assert.Equal(suite.T(), aggregate.Balance, retrievedAggregate.Balance)
 	assert.Equal(suite.T(), aggregate.Status, retrievedAggregate.Status)
 	assert.Len(suite.T(), retrievedAggregate.Transactions, 1)
 
 	// Reconstructed aggregate should not have uncommitted events
-	assert.Empty(suite.T(), retrievedAggregate.GetUncommittedEvents())
+	assert.Empty(suite.T(), retrievedAggregate.PopEventPayloads())
 }
 
-func (suite *RepositoryTestSuite) TestGetByUserId_NotFound() {
+func (suite *RepositoryTestSuite) TestGetByUserID_NotFound() {
 	ctx := context.Background()
 
-	aggregate, err := suite.repository.GetByUserId(ctx, "550e8400-e29b-41d4-a716-446655440001")
+	aggregate, err := suite.repository.GetByUserID(ctx, "550e8400-e29b-41d4-a716-446655440001")
 
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), aggregate)
@@ -115,25 +115,25 @@ func (suite *RepositoryTestSuite) TestGetByUserId_NotFound() {
 
 func (suite *RepositoryTestSuite) TestCreateWallet() {
 	ctx := context.Background()
-	userId := "550e8400-e29b-41d4-a716-446655440002"
+	userID := "550e8400-e29b-41d4-a716-446655440002"
 
 	// Create wallet using CreateWallet
-	createdAggregate, err := suite.repository.CreateWallet(ctx, userId)
+	createdAggregate, err := suite.repository.CreateWallet(ctx, userID)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), createdAggregate)
 
-	assert.Equal(suite.T(), userId, createdAggregate.UserId)
+	assert.Equal(suite.T(), userID, createdAggregate.UserID)
 	assert.Equal(suite.T(), 0.0, createdAggregate.Balance)
 	assert.Equal(suite.T(), wallet.WalletStatusActive, createdAggregate.Status)
-	assert.NotEmpty(suite.T(), createdAggregate.Id)
+	assert.NotEmpty(suite.T(), createdAggregate.ID)
 }
 
 func (suite *RepositoryTestSuite) TestWalletOperations() {
 	ctx := context.Background()
-	userId := "550e8400-e29b-41d4-a716-446655440003"
+	userID := "550e8400-e29b-41d4-a716-446655440003"
 
 	// Create wallet
-	aggregate, err := suite.repository.CreateWallet(ctx, userId)
+	aggregate, err := suite.repository.CreateWallet(ctx, userID)
 	require.NoError(suite.T(), err)
 
 	// Add funds
@@ -145,7 +145,7 @@ func (suite *RepositoryTestSuite) TestWalletOperations() {
 	require.NoError(suite.T(), err)
 
 	// Retrieve and verify
-	retrievedAggregate, err := suite.repository.GetByUserId(ctx, userId)
+	retrievedAggregate, err := suite.repository.GetByUserID(ctx, userID)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 100.0, retrievedAggregate.Balance)
 	assert.Len(suite.T(), retrievedAggregate.Transactions, 1)
@@ -153,10 +153,10 @@ func (suite *RepositoryTestSuite) TestWalletOperations() {
 
 func (suite *RepositoryTestSuite) TestWalletDebit() {
 	ctx := context.Background()
-	userId := "550e8400-e29b-41d4-a716-446655440004"
+	userID := "550e8400-e29b-41d4-a716-446655440004"
 
 	// Create wallet and add funds
-	aggregate, err := suite.repository.CreateWallet(ctx, userId)
+	aggregate, err := suite.repository.CreateWallet(ctx, userID)
 	require.NoError(suite.T(), err)
 
 	err = aggregate.AddFund(100.0, "Initial deposit")
@@ -166,7 +166,7 @@ func (suite *RepositoryTestSuite) TestWalletDebit() {
 	require.NoError(suite.T(), err)
 
 	// Retrieve fresh aggregate
-	aggregate, err = suite.repository.GetByUserId(ctx, userId)
+	aggregate, err = suite.repository.GetByUserID(ctx, userID)
 	require.NoError(suite.T(), err)
 
 	// Debit funds
@@ -177,7 +177,7 @@ func (suite *RepositoryTestSuite) TestWalletDebit() {
 	require.NoError(suite.T(), err)
 
 	// Verify final balance
-	finalAggregate, err := suite.repository.GetByUserId(ctx, userId)
+	finalAggregate, err := suite.repository.GetByUserID(ctx, userID)
 	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 50.0, finalAggregate.Balance)
 	assert.Len(suite.T(), finalAggregate.Transactions, 2)
@@ -185,10 +185,10 @@ func (suite *RepositoryTestSuite) TestWalletDebit() {
 
 func (suite *RepositoryTestSuite) TestWalletInsufficientFunds() {
 	ctx := context.Background()
-	userId := "550e8400-e29b-41d4-a716-446655440005"
+	userID := "550e8400-e29b-41d4-a716-446655440005"
 
 	// Create wallet with insufficient funds
-	aggregate, err := suite.repository.CreateWallet(ctx, userId)
+	aggregate, err := suite.repository.CreateWallet(ctx, userID)
 	require.NoError(suite.T(), err)
 
 	err = aggregate.AddFund(30.0, "Small deposit")

@@ -42,7 +42,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"id":    user.Id,
+		"id":    user.ID,
 		"email": user.Email,
 		"name":  user.Name,
 	})
@@ -67,7 +67,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{
-			"id":         user.Id,
+			"id":         user.ID,
 			"email":      user.Email,
 			"name":       user.Name,
 			"created_at": user.CreatedAt,

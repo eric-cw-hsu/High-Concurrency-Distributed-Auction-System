@@ -3,7 +3,6 @@ package order
 import (
 	"time"
 
-	"eric-cw-hsu.github.io/scalable-auction-system/internal/domain"
 	"github.com/samborkent/uuidv7"
 )
 
@@ -17,32 +16,34 @@ const (
 
 // Order Aggregate Root
 type OrderAggregate struct {
-	Id        string
-	BuyerId   string
-	StockId   string
+	ID        string
+	BuyerID   string
+	StockID   string
 	Quantity  int
 	Price     float64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	status OrderStatus
-	events []domain.DomainEvent
+	status        OrderStatus
+	eventPayloads []interface{}
 }
 
 func (o *OrderAggregate) Status() OrderStatus {
 	return o.status
 }
 
-func (o *OrderAggregate) DomainEvents() []domain.DomainEvent {
-	return o.events
+func (o *OrderAggregate) PopEventPayloads() []interface{} {
+	payloads := o.eventPayloads
+	o.eventPayloads = make([]interface{}, 0)
+	return payloads
 }
 
-func NewOrderAggregate(buyerId, stockId string, price float64, requestQuantity int) (*OrderAggregate, error) {
-	if buyerId == "" {
-		return nil, ErrEmptyBuyerId
+func NewOrderAggregate(buyerID, stockID string, price float64, requestQuantity int) (*OrderAggregate, error) {
+	if buyerID == "" {
+		return nil, ErrEmptyBuyerID
 	}
-	if stockId == "" {
-		return nil, ErrEmptyStockId
+	if stockID == "" {
+		return nil, ErrEmptyStockID
 	}
 	if requestQuantity <= 0 {
 		return nil, ErrInvalidQuantity
@@ -51,16 +52,16 @@ func NewOrderAggregate(buyerId, stockId string, price float64, requestQuantity i
 	totalPrice := price * float64(requestQuantity)
 
 	return &OrderAggregate{
-		Id:        uuidv7.New().String(),
-		BuyerId:   buyerId,
-		StockId:   stockId,
+		ID:        uuidv7.New().String(),
+		BuyerID:   buyerID,
+		StockID:   stockID,
 		Quantity:  requestQuantity,
 		Price:     totalPrice,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 
-		status: OrderStatusPending,
-		events: make([]domain.DomainEvent, 0),
+		status:        OrderStatusPending,
+		eventPayloads: make([]interface{}, 0),
 	}, nil
 }
 
@@ -71,10 +72,10 @@ func (o *OrderAggregate) ConfirmAfterStockDeduction(timestamp time.Time) error {
 	o.status = OrderStatusConfirmed
 	o.UpdatedAt = time.Now()
 
-	event := OrderPlacedEvent{
-		OrderId:    o.Id,
-		BuyerId:    o.BuyerId,
-		StockId:    o.StockId,
+	event := OrderReservedPayload{
+		OrderID:    o.ID,
+		BuyerID:    o.BuyerID,
+		StockID:    o.StockID,
 		Quantity:   o.Quantity,
 		TotalPrice: o.Price,
 		CreatedAt:  o.CreatedAt,
@@ -83,7 +84,7 @@ func (o *OrderAggregate) ConfirmAfterStockDeduction(timestamp time.Time) error {
 		Timestamp: timestamp,
 	}
 
-	o.events = append(o.events, &event)
+	o.eventPayloads = append(o.eventPayloads, &event)
 
 	return nil
 }

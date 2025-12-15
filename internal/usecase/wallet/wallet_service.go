@@ -6,96 +6,99 @@ import (
 	"fmt"
 
 	"eric-cw-hsu.github.io/scalable-auction-system/internal/domain/wallet"
+	"eric-cw-hsu.github.io/scalable-auction-system/internal/interface/producer"
 )
 
 type WalletService interface {
-	EnsureWalletExists(ctx context.Context, userId string) (*WalletInfo, error)
-	CreateWallet(ctx context.Context, userId string) (*WalletInfo, error)
-	ProcessPaymentWithSufficientFunds(ctx context.Context, userId, orderId string, amount float64) (*WalletInfo, error)
-	ProcessRefundSafely(ctx context.Context, userId, orderId string, amount float64) (*WalletInfo, error)
+	EnsureWalletExists(ctx context.Context, userID string) (*WalletInfo, error)
+	CreateWallet(ctx context.Context, userID string) (*WalletInfo, error)
+	ProcessPaymentWithSufficientFunds(ctx context.Context, userID, orderId string, amount float64) (*WalletInfo, error)
+	ProcessRefundSafely(ctx context.Context, userID, orderId string, amount float64) (*WalletInfo, error)
 }
 
 type walletService struct {
-	walletRepo     wallet.WalletRepository
-	eventPublisher wallet.EventPublisher
+	walletRepo          wallet.WalletRepository
+	walletEventProducer producer.EventProducer
 }
 
 // NewWalletService creates a new wallet service instance
-func NewWalletService(walletRepo wallet.WalletRepository, eventPublisher wallet.EventPublisher) WalletService {
+func NewWalletService(walletRepo wallet.WalletRepository, walletEventProducer producer.EventProducer) WalletService {
 	return &walletService{
-		walletRepo:     walletRepo,
-		eventPublisher: eventPublisher,
+		walletRepo:          walletRepo,
+		walletEventProducer: walletEventProducer,
 	}
 }
 
-func (s *walletService) EnsureWalletExists(ctx context.Context, userId string) (*WalletInfo, error) {
+func (s *walletService) EnsureWalletExists(ctx context.Context, userID string) (*WalletInfo, error) {
 	// Try to get existing wallet
-	walletAgg, err := s.walletRepo.GetByUserId(ctx, userId)
+	walletAgg, err := s.walletRepo.GetByUserID(ctx, userID)
 	if err == nil {
 		return s.aggregateToInfo(walletAgg), nil
 	}
 
 	// If wallet doesn't exist, create it
 	if errors.Is(err, wallet.ErrWalletNotFound) {
-		return s.CreateWallet(ctx, userId)
+		return s.CreateWallet(ctx, userID)
 	}
 
 	return nil, &wallet.RepositoryError{
 		Operation: "check_wallet_existence",
-		UserId:    userId,
+		UserID:    userID,
 		Wrapped:   err,
 	}
 }
 
-func (s *walletService) CreateWallet(ctx context.Context, userId string) (*WalletInfo, error) {
+func (s *walletService) CreateWallet(ctx context.Context, userID string) (*WalletInfo, error) {
 	// Check if wallet already exists
-	_, err := s.walletRepo.GetByUserId(ctx, userId)
+	_, err := s.walletRepo.GetByUserID(ctx, userID)
 	if err == nil {
 		return nil, &wallet.WalletAlreadyExistsError{
-			UserId: userId,
+			UserID: userID,
 		}
 	}
 
 	if !errors.Is(err, wallet.ErrWalletNotFound) {
 		return nil, &wallet.RepositoryError{
 			Operation: "check_wallet_existence",
-			UserId:    userId,
+			UserID:    userID,
 			Wrapped:   err,
 		}
 	}
 
 	// Create new wallet aggregate (this is a business operation, so use CreateNewWallet)
-	walletAgg := wallet.CreateNewWallet(userId)
+	walletAgg := wallet.CreateNewWallet(userID)
 
 	// Save to repository
 	if err := s.walletRepo.Save(ctx, walletAgg); err != nil {
 		return nil, &wallet.RepositoryError{
 			Operation: "save_wallet",
-			UserId:    userId,
+			UserID:    userID,
 			Wrapped:   err,
 		}
 	}
 
 	// Publish events
-	for _, event := range walletAgg.GetUncommittedEvents() {
-		if err := s.eventPublisher.Publish(ctx, event); err != nil {
-			// Log error but don't fail the operation
+	for eventPayload := range walletAgg.PopEventPayloads() {
+		domainEvent, ok := buildWalletDomainEvent(eventPayload)
+		if !ok {
+			continue
+		}
+
+		if err := s.walletEventProducer.PublishEvent(ctx, domainEvent); err != nil {
 			fmt.Printf("Failed to publish event: %v\n", err)
 		}
 	}
 
-	walletAgg.MarkEventsAsCommitted()
-
 	return s.aggregateToInfo(walletAgg), nil
 }
 
-func (s *walletService) ProcessPaymentWithSufficientFunds(ctx context.Context, userId, orderId string, amount float64) (*WalletInfo, error) {
+func (s *walletService) ProcessPaymentWithSufficientFunds(ctx context.Context, userID, orderId string, amount float64) (*WalletInfo, error) {
 	// Get wallet
-	walletAgg, err := s.walletRepo.GetByUserId(ctx, userId)
+	walletAgg, err := s.walletRepo.GetByUserID(ctx, userID)
 	if err != nil {
 		return nil, &wallet.RepositoryError{
 			Operation: "get_wallet",
-			UserId:    userId,
+			UserID:    userID,
 			Wrapped:   err,
 		}
 	}
@@ -109,30 +112,33 @@ func (s *walletService) ProcessPaymentWithSufficientFunds(ctx context.Context, u
 	if err := s.walletRepo.Save(ctx, walletAgg); err != nil {
 		return nil, &wallet.RepositoryError{
 			Operation: "save_wallet_after_payment",
-			UserId:    userId,
+			UserID:    userID,
 			Wrapped:   err,
 		}
 	}
 
 	// Publish events
-	for _, event := range walletAgg.GetUncommittedEvents() {
-		if err := s.eventPublisher.Publish(ctx, event); err != nil {
+	for eventPayload := range walletAgg.PopEventPayloads() {
+		domainEvent, ok := buildWalletDomainEvent(eventPayload)
+		if !ok {
+			continue
+		}
+
+		if err := s.walletEventProducer.PublishEvent(ctx, domainEvent); err != nil {
 			fmt.Printf("Failed to publish event: %v\n", err)
 		}
 	}
 
-	walletAgg.MarkEventsAsCommitted()
-
 	return s.aggregateToInfo(walletAgg), nil
 }
 
-func (s *walletService) ProcessRefundSafely(ctx context.Context, userId, orderId string, amount float64) (*WalletInfo, error) {
+func (s *walletService) ProcessRefundSafely(ctx context.Context, userID, orderId string, amount float64) (*WalletInfo, error) {
 	// Get wallet
-	walletAgg, err := s.walletRepo.GetByUserId(ctx, userId)
+	walletAgg, err := s.walletRepo.GetByUserID(ctx, userID)
 	if err != nil {
 		return nil, &wallet.RepositoryError{
 			Operation: "get_wallet",
-			UserId:    userId,
+			UserID:    userID,
 			Wrapped:   err,
 		}
 	}
@@ -146,19 +152,22 @@ func (s *walletService) ProcessRefundSafely(ctx context.Context, userId, orderId
 	if err := s.walletRepo.Save(ctx, walletAgg); err != nil {
 		return nil, &wallet.RepositoryError{
 			Operation: "save_wallet_after_refund",
-			UserId:    userId,
+			UserID:    userID,
 			Wrapped:   err,
 		}
 	}
 
 	// Publish events
-	for _, event := range walletAgg.GetUncommittedEvents() {
-		if err := s.eventPublisher.Publish(ctx, event); err != nil {
+	for eventPayload := range walletAgg.PopEventPayloads() {
+		domainEvent, ok := buildWalletDomainEvent(eventPayload)
+		if !ok {
+			continue
+		}
+
+		if err := s.walletEventProducer.PublishEvent(ctx, domainEvent); err != nil {
 			fmt.Printf("Failed to publish event: %v\n", err)
 		}
 	}
-
-	walletAgg.MarkEventsAsCommitted()
 
 	return s.aggregateToInfo(walletAgg), nil
 }

@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,11 +10,11 @@ import (
 
 // LogEntry represents a structured log entry compatible with logrus
 type LogEntry struct {
-	ID        string        `json:"id"`
+	Id        string        `json:"id"`
 	Timestamp time.Time     `json:"timestamp"`
-	Level     logrus.Level  `json:"level"`      // logrus.InfoLevel, logrus.ErrorLevel, etc.
-	Service   string        `json:"service"`    // order-service, wallet-service, etc.
-	EventType string        `json:"event_type"` // order.placed, wallet.deposited, etc.
+	Level     logrus.Level  `json:"level"`     // logrus.InfoLevel, logrus.ErrorLevel, etc.
+	Service   string        `json:"service"`   // order-service, wallet-service, etc.
+	Operation string        `json:"operation"` // CreateOrder, ReserveStock, etc.
 	Message   string        `json:"message"`
 	UserID    string        `json:"user_id,omitempty"`
 	TraceID   string        `json:"trace_id,omitempty"`
@@ -37,13 +38,13 @@ func ParseLogLevel(level string) logrus.Level {
 }
 
 // NewLogEntry creates a new log entry with basic validation
-func NewLogEntry(level, service, eventType, message string) *LogEntry {
+func NewLogEntry(level, service, operation, message string) *LogEntry {
 	return &LogEntry{
-		ID:        generateID(),
+		Id:        generateId(),
 		Timestamp: time.Now(),
 		Level:     ParseLogLevel(level),
 		Service:   service,
-		EventType: eventType,
+		Operation: operation,
 		Message:   message,
 		Metadata:  make(logrus.Fields),
 	}
@@ -70,8 +71,36 @@ func (e *LogEntry) SetTrace(traceID string) *LogEntry {
 	return e
 }
 
+func (e *LogEntry) String() string {
+
+	timestamp := e.Timestamp.Format("15:04:05")
+
+	// Add color to log level
+	var colorLevel string
+	switch e.Level {
+	case logrus.DebugLevel:
+		colorLevel = "\033[36m[DEBUG]\033[0m" // Cyan
+	case logrus.InfoLevel:
+		colorLevel = "\033[32m[INFO]\033[0m" // Green
+	case logrus.WarnLevel:
+		colorLevel = "\033[33m[WARN]\033[0m" // Yellow
+	case logrus.ErrorLevel:
+		colorLevel = "\033[31m[ERROR]\033[0m" // Red
+	case logrus.FatalLevel:
+		colorLevel = "\033[35m[FATAL]\033[0m" // Magenta
+	default:
+		colorLevel = fmt.Sprintf("[%s]", e.Level.String())
+	}
+
+	if e.Metadata != nil && len(e.Metadata) > 0 {
+		return fmt.Sprintf("%s %s: %s (%s) %+v", colorLevel, e.Service, e.Message, timestamp, e.Metadata)
+	} else {
+		return fmt.Sprintf("%s %s: %s (%s)", colorLevel, e.Service, e.Message, timestamp)
+	}
+}
+
 // generateID generates a unique ID for the log entry
-func generateID() string {
+func generateId() string {
 	// Use UUID for better uniqueness
 	return uuid.New().String()
 }

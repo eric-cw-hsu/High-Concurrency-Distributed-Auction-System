@@ -27,11 +27,11 @@ func (s *SyncService) SyncStockToRedis(ctx context.Context) error {
 	}
 
 	for _, stockItem := range stocks {
-		if err := s.stockCache.SetStock(ctx, stockItem.Id, stockItem.Quantity); err != nil {
+		if err := s.stockCache.SetStock(ctx, stockItem.ID, stockItem.Quantity); err != nil {
 			return err
 		}
 
-		if err := s.stockCache.SetPrice(ctx, stockItem.Id, stockItem.Price); err != nil {
+		if err := s.stockCache.SetPrice(ctx, stockItem.ID, stockItem.Price); err != nil {
 			return err
 		}
 	}

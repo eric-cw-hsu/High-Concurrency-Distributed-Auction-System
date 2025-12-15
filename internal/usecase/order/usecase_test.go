@@ -13,15 +13,15 @@ import (
 
 func TestPlaceOrderUsecase_Execute_Success(t *testing.T) {
 	// Arrange
-	mockProducer := testutil.NewMockOrderProducer()
+	mockProducer := testutil.NewMockProducer()
 	mockStockCache := testutil.NewMockStockCache()
 	mockWalletService := testutil.NewMockWalletService()
 
 	usecase := NewPlaceOrderUsecase(mockProducer, mockStockCache, mockWalletService)
 
 	command := order.PlaceOrderCommand{
-		BuyerId:  "buyer-123",
-		StockId:  "stock-456",
+		BuyerID:  "buyer-123",
+		StockID:  "stock-456",
 		Quantity: 5,
 	}
 
@@ -30,8 +30,8 @@ func TestPlaceOrderUsecase_Execute_Success(t *testing.T) {
 	totalAmount := stockPrice * float64(command.Quantity) // 500.0
 
 	// Setup initial stock and wallet state
-	mockStockCache.SetInitialStock(command.StockId, availableStock, stockPrice)
-	mockWalletService.SetBalance(command.BuyerId, 1000.0)
+	mockStockCache.SetInitialStock(command.StockID, availableStock, stockPrice)
+	mockWalletService.SetBalance(command.BuyerID, 1000.0)
 
 	// Act
 	err := usecase.Execute(context.Background(), command)
@@ -43,30 +43,30 @@ func TestPlaceOrderUsecase_Execute_Success(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify final state
-	assert.Equal(t, availableStock-command.Quantity, mockStockCache.GetCurrentStock(command.StockId))
-	assert.Equal(t, 1000.0-totalAmount, mockWalletService.GetBalance(command.BuyerId))
+	assert.Equal(t, availableStock-command.Quantity, mockStockCache.GetCurrentStock(command.StockID))
+	assert.Equal(t, 1000.0-totalAmount, mockWalletService.GetBalance(command.BuyerID))
 	assert.Equal(t, int64(1), mockProducer.GetPublishCount())
 }
 
 func TestPlaceOrderUsecase_Execute_InsufficientStock(t *testing.T) {
 	// Arrange
-	mockProducer := testutil.NewMockOrderProducer()
+	mockProducer := testutil.NewMockProducer()
 	mockStockCache := testutil.NewMockStockCache()
 	mockWalletService := testutil.NewMockWalletService()
 
 	usecase := NewPlaceOrderUsecase(mockProducer, mockStockCache, mockWalletService)
 
 	command := order.PlaceOrderCommand{
-		BuyerId:  "buyer-123",
-		StockId:  "stock-456",
+		BuyerID:  "buyer-123",
+		StockID:  "stock-456",
 		Quantity: 5,
 	}
 
 	// Setup: stock price but insufficient quantity
 	stockPrice := 100.0
 	availableStock := 3 // Less than requested
-	mockStockCache.SetInitialStock(command.StockId, availableStock, stockPrice)
-	mockWalletService.SetBalance(command.BuyerId, 1000.0)
+	mockStockCache.SetInitialStock(command.StockID, availableStock, stockPrice)
+	mockWalletService.SetBalance(command.BuyerID, 1000.0)
 
 	// Act
 	err := usecase.Execute(context.Background(), command)
@@ -78,27 +78,27 @@ func TestPlaceOrderUsecase_Execute_InsufficientStock(t *testing.T) {
 	// Verify detailed error information
 	var stockErr *order.InsufficientStockError
 	assert.ErrorAs(t, err, &stockErr)
-	assert.Equal(t, command.StockId, stockErr.StockId)
+	assert.Equal(t, command.StockID, stockErr.StockID)
 	assert.Equal(t, availableStock, stockErr.Available)
 	assert.Equal(t, command.Quantity, stockErr.Requested)
 
 	// Verify no stock was deducted and no events published
-	assert.Equal(t, availableStock, mockStockCache.GetCurrentStock(command.StockId)) // Stock unchanged
-	assert.Equal(t, 1000.0, mockWalletService.GetBalance(command.BuyerId))           // Balance unchanged
+	assert.Equal(t, availableStock, mockStockCache.GetCurrentStock(command.StockID)) // Stock unchanged
+	assert.Equal(t, 1000.0, mockWalletService.GetBalance(command.BuyerID))           // Balance unchanged
 	assert.Equal(t, int64(0), mockProducer.GetPublishCount())                        // No events published
 }
 
 func TestPlaceOrderUsecase_Execute_GetPriceFailure(t *testing.T) {
 	// Arrange
-	mockProducer := testutil.NewMockOrderProducer()
+	mockProducer := testutil.NewMockProducer()
 	mockStockCache := testutil.NewMockStockCache()
 	mockWalletService := testutil.NewMockWalletService()
 
 	usecase := NewPlaceOrderUsecase(mockProducer, mockStockCache, mockWalletService)
 
 	command := order.PlaceOrderCommand{
-		BuyerId:  "buyer-123",
-		StockId:  "stock-456",
+		BuyerID:  "buyer-123",
+		StockID:  "stock-456",
 		Quantity: 5,
 	}
 
@@ -115,21 +115,21 @@ func TestPlaceOrderUsecase_Execute_GetPriceFailure(t *testing.T) {
 	// Verify detailed error information
 	var stockErr *order.StockError
 	assert.ErrorAs(t, err, &stockErr)
-	assert.Equal(t, command.StockId, stockErr.StockId)
+	assert.Equal(t, command.StockID, stockErr.StockID)
 	assert.Equal(t, "get_price", stockErr.Operation)
 }
 
 func TestPlaceOrderUsecase_Execute_InsufficientFunds(t *testing.T) {
 	// Arrange
-	mockProducer := testutil.NewMockOrderProducer()
+	mockProducer := testutil.NewMockProducer()
 	mockStockCache := testutil.NewMockStockCache()
 	mockWalletService := testutil.NewMockWalletService()
 
 	usecase := NewPlaceOrderUsecase(mockProducer, mockStockCache, mockWalletService)
 
 	command := order.PlaceOrderCommand{
-		BuyerId:  "buyer-123",
-		StockId:  "stock-456",
+		BuyerID:  "buyer-123",
+		StockID:  "stock-456",
 		Quantity: 5,
 	}
 
@@ -137,8 +137,8 @@ func TestPlaceOrderUsecase_Execute_InsufficientFunds(t *testing.T) {
 	availableStock := 10
 
 	// Setup: insufficient wallet balance
-	mockStockCache.SetInitialStock(command.StockId, availableStock, stockPrice)
-	mockWalletService.SetBalance(command.BuyerId, 300.0) // Less than needed
+	mockStockCache.SetInitialStock(command.StockID, availableStock, stockPrice)
+	mockWalletService.SetBalance(command.BuyerID, 300.0) // Less than needed
 
 	// Act
 	err := usecase.Execute(context.Background(), command)
@@ -150,11 +150,11 @@ func TestPlaceOrderUsecase_Execute_InsufficientFunds(t *testing.T) {
 	// Verify detailed error information
 	var paymentErr *order.PaymentError
 	assert.ErrorAs(t, err, &paymentErr)
-	assert.Equal(t, command.BuyerId, paymentErr.UserId)
+	assert.Equal(t, command.BuyerID, paymentErr.UserId)
 	assert.Equal(t, 500.0, paymentErr.Amount) // 100 * 5
 
 	// Verify no stock was deducted and no events published
-	assert.Equal(t, availableStock, mockStockCache.GetCurrentStock(command.StockId)) // Stock unchanged
-	assert.Equal(t, 300.0, mockWalletService.GetBalance(command.BuyerId))            // Balance unchanged
+	assert.Equal(t, availableStock, mockStockCache.GetCurrentStock(command.StockID)) // Stock unchanged
+	assert.Equal(t, 300.0, mockWalletService.GetBalance(command.BuyerID))            // Balance unchanged
 	assert.Equal(t, int64(0), mockProducer.GetPublishCount())                        // No events published
 }

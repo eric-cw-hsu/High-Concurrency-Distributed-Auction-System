@@ -24,7 +24,17 @@ func NewKafkaManager(kafkaConfig config.KafkaConfig) (*KafkaManager, error) {
 	}, nil
 }
 
+func EnsureAllKafkaTopics(ctx context.Context, kafkaConfig config.KafkaConfig) error {
+	kafkaManager, err := NewKafkaManager(kafkaConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create kafka manager: %w", err)
+	}
+
+	return kafkaManager.EnsureAllTopics(ctx)
+}
+
 func (km *KafkaManager) EnsureAllTopics(ctx context.Context) error {
+
 	for _, topic := range km.kafkaConfig.Topics {
 		if err := km.EnsureTopicExists(ctx, topic); err != nil {
 			return fmt.Errorf("failed to ensure topic %s exists: %w", topic.Name, err)

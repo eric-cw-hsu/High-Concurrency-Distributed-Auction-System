@@ -15,12 +15,12 @@ func NewPostgresProductRepository(pgClient *sql.DB) *ProductRepository {
 	return &ProductRepository{pgClient: pgClient}
 }
 
-func (r *ProductRepository) GetProductById(ctx context.Context, productId string) (*product.Product, error) {
+func (r *ProductRepository) GetProductByID(ctx context.Context, productID string) (*product.Product, error) {
 	query := `SELECT id, name, description FROM products WHERE id = $1`
-	row := r.pgClient.QueryRow(query, productId)
+	row := r.pgClient.QueryRow(query, productID)
 
 	var product product.Product
-	if err := row.Scan(&product.Id, &product.Name, &product.Description); err != nil {
+	if err := row.Scan(&product.ID, &product.Name, &product.Description); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // Product not found
 		}
@@ -41,7 +41,7 @@ func (r *ProductRepository) GetAllProducts(ctx context.Context) ([]product.Produ
 	var products []product.Product
 	for rows.Next() {
 		var product product.Product
-		if err := rows.Scan(&product.Id, &product.Name, &product.Description); err != nil {
+		if err := rows.Scan(&product.ID, &product.Name, &product.Description); err != nil {
 			return nil, err // Handle error appropriately
 		}
 		products = append(products, product)
@@ -56,14 +56,14 @@ func (r *ProductRepository) GetAllProducts(ctx context.Context) ([]product.Produ
 
 func (r *ProductRepository) SaveProduct(ctx context.Context, product *product.Product) (*product.Product, error) {
 	query := `INSERT INTO products (id, name, description) VALUES ($1, $2, $3)`
-	_, err := r.pgClient.Exec(query, product.Id, product.Name, product.Description)
+	_, err := r.pgClient.Exec(query, product.ID, product.Name, product.Description)
 	if err != nil {
 		return nil, err
 	}
 
 	query = `SELECT id, name, description, created_at, updated_at FROM products WHERE id = $1`
-	row := r.pgClient.QueryRow(query, product.Id)
-	if err := row.Scan(&product.Id, &product.Name, &product.Description, &product.CreatedAt, &product.UpdatedAt); err != nil {
+	row := r.pgClient.QueryRow(query, product.ID)
+	if err := row.Scan(&product.ID, &product.Name, &product.Description, &product.CreatedAt, &product.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // Product not found
 		}
@@ -76,14 +76,14 @@ func (r *ProductRepository) SaveProduct(ctx context.Context, product *product.Pr
 
 func (r *ProductRepository) UpdateProduct(ctx context.Context, product *product.Product) (*product.Product, error) {
 	query := `UPDATE products SET name = $1, description = $2 WHERE id = $3`
-	_, err := r.pgClient.Exec(query, product.Name, product.Description, product.Id)
+	_, err := r.pgClient.Exec(query, product.Name, product.Description, product.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	query = `SELECT id, name, description, created_at, updated_at FROM products WHERE id = $1`
-	row := r.pgClient.QueryRow(query, product.Id)
-	if err := row.Scan(&product.Id, &product.Name, &product.Description, &product.CreatedAt, &product.UpdatedAt); err != nil {
+	row := r.pgClient.QueryRow(query, product.ID)
+	if err := row.Scan(&product.ID, &product.Name, &product.Description, &product.CreatedAt, &product.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // Product not found
 		}
@@ -93,9 +93,9 @@ func (r *ProductRepository) UpdateProduct(ctx context.Context, product *product.
 	return product, nil
 }
 
-func (r *ProductRepository) DeleteProduct(ctx context.Context, productId string) error {
+func (r *ProductRepository) DeleteProduct(ctx context.Context, productID string) error {
 	query := `DELETE FROM products WHERE id = $1`
-	_, err := r.pgClient.Exec(query, productId)
+	_, err := r.pgClient.Exec(query, productID)
 	if err != nil {
 		return err // Handle error appropriately
 	}
@@ -113,7 +113,7 @@ func (r *ProductRepository) SearchProductsByName(ctx context.Context, name strin
 	var products []product.Product
 	for rows.Next() {
 		var product product.Product
-		if err := rows.Scan(&product.Id, &product.Name, &product.Description, &product.CreatedAt, &product.UpdatedAt); err != nil {
+		if err := rows.Scan(&product.ID, &product.Name, &product.Description, &product.CreatedAt, &product.UpdatedAt); err != nil {
 			return nil, err // Handle error appropriately
 		}
 		products = append(products, product)

@@ -33,7 +33,7 @@ var (
 
 // InsufficientBalanceError provides detailed information about balance shortage
 type InsufficientBalanceError struct {
-	UserId    string
+	UserID    string
 	Current   float64
 	Required  float64
 	Operation string
@@ -41,7 +41,7 @@ type InsufficientBalanceError struct {
 
 func (e *InsufficientBalanceError) Error() string {
 	return fmt.Sprintf("insufficient balance for user %s (%s): current=%.2f, required=%.2f",
-		e.UserId, e.Operation, e.Current, e.Required)
+		e.UserID, e.Operation, e.Current, e.Required)
 }
 
 func (e *InsufficientBalanceError) Is(target error) bool {
@@ -50,11 +50,11 @@ func (e *InsufficientBalanceError) Is(target error) bool {
 
 // WalletNotFoundError provides detailed information about wallet lookup failures
 type WalletNotFoundError struct {
-	UserId string
+	UserID string
 }
 
 func (e *WalletNotFoundError) Error() string {
-	return fmt.Sprintf("wallet not found for user: %s", e.UserId)
+	return fmt.Sprintf("wallet not found for user: %s", e.UserID)
 }
 
 func (e *WalletNotFoundError) Is(target error) bool {
@@ -63,11 +63,11 @@ func (e *WalletNotFoundError) Is(target error) bool {
 
 // WalletAlreadyExistsError provides detailed information about duplicate wallet creation
 type WalletAlreadyExistsError struct {
-	UserId string
+	UserID string
 }
 
 func (e *WalletAlreadyExistsError) Error() string {
-	return fmt.Sprintf("wallet already exists for user: %s", e.UserId)
+	return fmt.Sprintf("wallet already exists for user: %s", e.UserID)
 }
 
 func (e *WalletAlreadyExistsError) Is(target error) bool {
@@ -76,7 +76,7 @@ func (e *WalletAlreadyExistsError) Is(target error) bool {
 
 // WalletStatusError provides detailed information about wallet status issues
 type WalletStatusError struct {
-	UserId    string
+	UserID    string
 	Status    int
 	Operation string
 }
@@ -92,7 +92,7 @@ func (e *WalletStatusError) Error() string {
 		statusStr = "suspended"
 	}
 	return fmt.Sprintf("wallet operation failed for user %s (%s): wallet status is %s",
-		e.UserId, e.Operation, statusStr)
+		e.UserID, e.Operation, statusStr)
 }
 
 func (e *WalletStatusError) Is(target error) bool {
@@ -123,18 +123,18 @@ func (e *InvalidAmountError) Is(target error) bool {
 // RepositoryError wraps repository operation failures
 type RepositoryError struct {
 	Operation string
-	UserId    string
+	UserID    string
 	Wrapped   error
 }
 
 func (e *RepositoryError) Error() string {
-	if e.UserId != "" {
+	if e.UserID != "" {
 		if e.Wrapped != nil {
 			return fmt.Sprintf("wallet repository operation failed (%s) for user %s: %v",
-				e.Operation, e.UserId, e.Wrapped)
+				e.Operation, e.UserID, e.Wrapped)
 		}
 		return fmt.Sprintf("wallet repository operation failed (%s) for user %s",
-			e.Operation, e.UserId)
+			e.Operation, e.UserID)
 	}
 
 	if e.Wrapped != nil {

@@ -2,22 +2,24 @@ package order
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"eric-cw-hsu.github.io/scalable-auction-system/internal/domain/order"
 	"eric-cw-hsu.github.io/scalable-auction-system/internal/domain/stock"
+	"eric-cw-hsu.github.io/scalable-auction-system/internal/interface/producer"
+	"eric-cw-hsu.github.io/scalable-auction-system/internal/message"
+	"eric-cw-hsu.github.io/scalable-auction-system/internal/shared/logger"
 	walletUsecase "eric-cw-hsu.github.io/scalable-auction-system/internal/usecase/wallet"
 )
 
 type PlaceOrderUsecase struct {
-	producer      order.EventProducer
+	producer      producer.EventProducer
 	stockCache    stock.StockCache
 	walletService walletUsecase.WalletService
 }
 
 func NewPlaceOrderUsecase(
-	producer order.EventProducer,
+	producer producer.EventProducer,
 	stockCache stock.StockCache,
 	walletService walletUsecase.WalletService,
 ) *PlaceOrderUsecase {
@@ -32,10 +34,10 @@ func NewPlaceOrderUsecase(
 // This ensures transaction consistency and real-time balance deduction.
 func (uc *PlaceOrderUsecase) Execute(ctx context.Context, command order.PlaceOrderCommand) error {
 	// 1. Get stock price
-	price, err := uc.stockCache.GetPrice(ctx, command.StockId)
+	price, err := uc.stockCache.GetPrice(ctx, command.StockID)
 	if err != nil {
 		return &order.StockError{
-			StockId:   command.StockId,
+			StockID:   command.StockID,
 			Operation: "get_price",
 			Wrapped:   err,
 		}
@@ -45,10 +47,10 @@ func (uc *PlaceOrderUsecase) Execute(ctx context.Context, command order.PlaceOrd
 	totalAmount := price * float64(command.Quantity)
 
 	// 3. Check stock availability
-	availableQty, err := uc.stockCache.GetStock(ctx, command.StockId)
+	availableQty, err := uc.stockCache.GetStock(ctx, command.StockID)
 	if err != nil {
 		return &order.StockError{
-			StockId:   command.StockId,
+			StockID:   command.StockID,
 			Operation: "get_quantity",
 			Wrapped:   err,
 		}
@@ -56,7 +58,7 @@ func (uc *PlaceOrderUsecase) Execute(ctx context.Context, command order.PlaceOrd
 
 	if availableQty < command.Quantity {
 		return &order.InsufficientStockError{
-			StockId:   command.StockId,
+			StockID:   command.StockID,
 			Available: availableQty,
 			Requested: command.Quantity,
 		}
@@ -64,9 +66,9 @@ func (uc *PlaceOrderUsecase) Execute(ctx context.Context, command order.PlaceOrd
 
 	// 4. CRITICAL: Process payment IMMEDIATELY (real-time balance deduction)
 	// This ensures the user's balance is updated before the API call returns
-	if _, err := uc.walletService.ProcessPaymentWithSufficientFunds(ctx, command.BuyerId, "", totalAmount); err != nil {
+	if _, err := uc.walletService.ProcessPaymentWithSufficientFunds(ctx, command.BuyerID, "", totalAmount); err != nil {
 		return &order.PaymentError{
-			UserId:  command.BuyerId,
+			UserId:  command.BuyerID,
 			Amount:  totalAmount,
 			Reason:  "insufficient funds or payment processing failed",
 			Wrapped: err,
@@ -74,12 +76,12 @@ func (uc *PlaceOrderUsecase) Execute(ctx context.Context, command order.PlaceOrd
 	}
 
 	// 5. Reduce stock in cache (also immediate)
-	occurredOn, err := uc.stockCache.DecreaseStock(ctx, command.StockId, command.Quantity)
+	occurredOn, err := uc.stockCache.DecreaseStock(ctx, command.StockID, command.Quantity)
 	if err != nil {
 		// CRITICAL: Rollback payment immediately if stock update fails
-		uc.walletService.ProcessRefundSafely(ctx, command.BuyerId, "", totalAmount)
+		uc.walletService.ProcessRefundSafely(ctx, command.BuyerID, "", totalAmount)
 		return &order.StockError{
-			StockId:   command.StockId,
+			StockID:   command.StockID,
 			Operation: "update",
 			Wrapped:   err,
 		}
@@ -95,28 +97,33 @@ func (uc *PlaceOrderUsecase) Execute(ctx context.Context, command order.PlaceOrd
 // publishOrderEventAsync publishes order events asynchronously for audit and notifications
 func (uc *PlaceOrderUsecase) publishOrderEventAsync(ctx context.Context, command order.PlaceOrderCommand, totalAmount float64, occurredOn time.Time) {
 	// Create order aggregate for event
-	orderAggregate, err := order.NewOrderAggregate(command.BuyerId, command.StockId, totalAmount, command.Quantity)
+	orderAggregate, err := order.NewOrderAggregate(command.BuyerID, command.StockID, totalAmount, command.Quantity)
 	if err != nil {
 		// Log error but don't fail the main transaction
-		fmt.Printf("Failed to create order aggregate for event: %v\n", err)
+		logger.Errorf("Failed to create order aggregate for event: %v\n", err)
 		return
 	}
 
-	// Create order event
-	orderEvent := order.OrderPlacedEvent{
-		OrderId:    orderAggregate.Id,
-		StockId:    orderAggregate.StockId,
-		BuyerId:    orderAggregate.BuyerId,
-		Quantity:   orderAggregate.Quantity,
-		TotalPrice: totalAmount,
-		CreatedAt:  orderAggregate.CreatedAt,
-		UpdatedAt:  orderAggregate.UpdatedAt,
-		Timestamp:  occurredOn,
+	if err := orderAggregate.ConfirmAfterStockDeduction(occurredOn); err != nil {
+		// Log error but don't fail the main transaction
+		logger.Errorf("Failed to confirm order aggregate for event: %v\n", err)
+		return
 	}
 
-	// Publish event for audit trail, notifications, etc.
-	if err := uc.producer.PublishEvent(ctx, &orderEvent); err != nil {
-		// Log error but don't fail - this is for audit/notification only
-		fmt.Printf("Failed to publish order placed event: %v\n", err)
+	// Prepare event payload
+	for _, payload := range orderAggregate.PopEventPayloads() {
+		domainEvent := message.DomainEvent{
+			Name:        "order.reserved",
+			AggregateID: orderAggregate.ID,
+			OccurredAt:  occurredOn,
+			Payload:     payload,
+			Version:     1,
+		}
+
+		// Publish event for audit trail, notifications, etc.
+		if err := uc.producer.PublishEvent(ctx, &domainEvent); err != nil {
+			// Log error but don't fail - this is for audit/notification only
+			logger.Errorf("Failed to publish order event: %v\n", err)
+		}
 	}
 }

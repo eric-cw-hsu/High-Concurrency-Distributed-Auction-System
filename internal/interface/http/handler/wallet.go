@@ -36,7 +36,7 @@ func (h *WalletHandler) CreateWallet(c *gin.Context) {
 	}
 
 	// For now, create wallet if needed using CreateWallet usecase
-	walletInfo, err := h.createWalletUsecase.Execute(c.Request.Context(), command.UserId)
+	walletInfo, err := h.createWalletUsecase.Execute(c.Request.Context(), command.UserID)
 	if err != nil {
 		httphelper.ErrorResponse(c, http.StatusInternalServerError, "Failed to create wallet", err)
 		return
@@ -47,14 +47,14 @@ func (h *WalletHandler) CreateWallet(c *gin.Context) {
 
 // GetWallet retrieves wallet information for a user
 func (h *WalletHandler) GetWallet(c *gin.Context) {
-	userId := c.Param("userId")
-	if userId == "" {
+	userID := c.Param("userID")
+	if userID == "" {
 		httphelper.ErrorResponse(c, http.StatusBadRequest, "User ID is required", nil)
 		return
 	}
 
 	// Get wallet - for now we'll create if not exists (should be a separate GetWallet usecase)
-	walletInfo, err := h.createWalletUsecase.Execute(c.Request.Context(), userId)
+	walletInfo, err := h.createWalletUsecase.Execute(c.Request.Context(), userID)
 	if err != nil {
 		httphelper.ErrorResponse(c, http.StatusInternalServerError, "Failed to get wallet", err)
 		return

@@ -31,7 +31,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	}
 
 	c.JSON(201, gin.H{
-		"id":          product.Id,
+		"id":          product.ID,
 		"name":        product.Name,
 		"description": product.Description,
 		"created_at":  product.CreatedAt,

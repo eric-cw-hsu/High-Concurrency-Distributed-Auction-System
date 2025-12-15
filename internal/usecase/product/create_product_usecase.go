@@ -21,7 +21,7 @@ func NewCreateProductUsecase(productRepository product.ProductRepository) *Creat
 // It generates a UUID for the product, creates the product entity, and saves it to the repository.
 func (uc *CreateProductUsecase) Execute(ctx context.Context, command product.CreateProductCommand) (*product.Product, error) {
 	productEntity := product.Product{
-		Id:          uuidv7.New().String(),
+		ID:          uuidv7.New().String(),
 		Name:        command.Name,
 		Description: command.Description,
 	}

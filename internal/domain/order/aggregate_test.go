@@ -21,15 +21,15 @@ func TestNewOrderAggregate_Success(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	assert.NotNil(t, aggregate)
-	assert.NotEmpty(t, aggregate.Id)
-	assert.Equal(t, buyerId, aggregate.BuyerId)
-	assert.Equal(t, stockId, aggregate.StockId)
+	assert.NotEmpty(t, aggregate.ID)
+	assert.Equal(t, buyerId, aggregate.BuyerID)
+	assert.Equal(t, stockId, aggregate.StockID)
 	assert.Equal(t, quantity, aggregate.Quantity)
 	assert.Equal(t, 500.0, aggregate.Price) // price * quantity
 	assert.Equal(t, OrderStatusPending, aggregate.Status())
 	assert.NotZero(t, aggregate.CreatedAt)
 	assert.NotZero(t, aggregate.UpdatedAt)
-	assert.Empty(t, aggregate.DomainEvents()) // No events initially
+	assert.Empty(t, aggregate.PopEventPayloads()) // No events initially
 }
 
 func TestNewOrderAggregate_Validation(t *testing.T) {
@@ -104,19 +104,17 @@ func TestOrderAggregate_ConfirmAfterStockDeduction_Success(t *testing.T) {
 	assert.True(t, aggregate.UpdatedAt.After(aggregate.CreatedAt))
 
 	// Check event generation
-	events := aggregate.DomainEvents()
+	events := aggregate.PopEventPayloads()
 	assert.Len(t, events, 1)
 
-	event, ok := events[0].(*OrderPlacedEvent)
+	event, ok := events[0].(*OrderReservedPayload)
 	assert.True(t, ok)
-	assert.Equal(t, aggregate.Id, event.OrderId)
-	assert.Equal(t, aggregate.BuyerId, event.BuyerId)
-	assert.Equal(t, aggregate.StockId, event.StockId)
+	assert.Equal(t, aggregate.ID, event.OrderID)
+	assert.Equal(t, aggregate.BuyerID, event.BuyerID)
+	assert.Equal(t, aggregate.StockID, event.StockID)
 	assert.Equal(t, aggregate.Quantity, event.Quantity)
 	assert.Equal(t, aggregate.Price, event.TotalPrice)
 	assert.Equal(t, confirmTime, event.Timestamp)
-	assert.Equal(t, "order.placed", event.EventType())
-	assert.Equal(t, aggregate.Id, event.AggregateId())
 }
 
 func TestOrderAggregate_ConfirmAfterStockDeduction_InvalidStatus(t *testing.T) {
@@ -175,7 +173,7 @@ func TestOrderAggregate_Cancel_Success(t *testing.T) {
 	assert.True(t, aggregate.UpdatedAt.After(aggregate.CreatedAt))
 
 	// No events should be generated for cancellation
-	events := aggregate.DomainEvents()
+	events := aggregate.PopEventPayloads()
 	assert.Empty(t, events)
 }
 
@@ -264,25 +262,6 @@ func TestOrderAggregate_TotalPriceCalculation(t *testing.T) {
 			assert.Equal(t, tt.expectedTotal, aggregate.Price)
 		})
 	}
-}
-
-func TestOrderPlacedEvent_Implementation(t *testing.T) {
-	// Arrange
-	event := &OrderPlacedEvent{
-		OrderId:    "order-123",
-		StockId:    "stock-456",
-		BuyerId:    "buyer-789",
-		Quantity:   5,
-		TotalPrice: 500.0,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-		Timestamp:  time.Now(),
-	}
-
-	// Act & Assert
-	assert.Equal(t, "order.placed", event.EventType())
-	assert.Equal(t, "order-123", event.AggregateId())
-	assert.Equal(t, event.Timestamp, event.OccurredOn())
 }
 
 func TestOrderAggregate_StatusTransitions(t *testing.T) {

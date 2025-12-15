@@ -3,8 +3,6 @@ package wallet
 import (
 	"fmt"
 	"time"
-
-	"eric-cw-hsu.github.io/scalable-auction-system/internal/domain"
 )
 
 type WalletStatus int
@@ -33,14 +31,14 @@ const (
 )
 
 type WalletAggregate struct {
-	Id           string
-	UserId       string
-	Balance      float64
-	Status       WalletStatus
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Transactions []Transaction
-	events       []domain.DomainEvent
+	ID            string
+	UserID        string
+	Balance       float64
+	Status        WalletStatus
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Transactions  []Transaction
+	eventPayloads []interface{}
 }
 
 // NewWalletAggregate creates a new wallet aggregate instance (without events)
@@ -48,13 +46,13 @@ type WalletAggregate struct {
 func NewWalletAggregate(userId string) *WalletAggregate {
 	now := time.Now()
 	return &WalletAggregate{
-		UserId:       userId,
-		Balance:      0.0,
-		Status:       WalletStatusActive,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-		Transactions: make([]Transaction, 0),
-		events:       make([]domain.DomainEvent, 0),
+		UserID:        userId,
+		Balance:       0.0,
+		Status:        WalletStatusActive,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+		Transactions:  make([]Transaction, 0),
+		eventPayloads: make([]interface{}, 0),
 	}
 }
 
@@ -63,34 +61,34 @@ func NewWalletAggregate(userId string) *WalletAggregate {
 func ReconstructWalletAggregate(id, userId string, balance float64, status WalletStatus,
 	createdAt, updatedAt time.Time, transactions []Transaction) *WalletAggregate {
 	return &WalletAggregate{
-		Id:           id,
-		UserId:       userId,
-		Balance:      balance,
-		Status:       status,
-		CreatedAt:    createdAt,
-		UpdatedAt:    updatedAt,
-		Transactions: transactions,
-		events:       make([]domain.DomainEvent, 0), // No events when reconstructing
+		ID:            id,
+		UserID:        userId,
+		Balance:       balance,
+		Status:        status,
+		CreatedAt:     createdAt,
+		UpdatedAt:     updatedAt,
+		Transactions:  transactions,
+		eventPayloads: make([]interface{}, 0), // No events when reconstructing
 	}
 }
 
 // CreateNewWallet creates a new wallet for business operations (with events)
 // This should be used when actually creating a new wallet in the business context
-func CreateNewWallet(userId string) *WalletAggregate {
+func CreateNewWallet(userID string) *WalletAggregate {
 	now := time.Now()
 	aggregate := &WalletAggregate{
-		UserId:       userId,
-		Balance:      0.0,
-		Status:       WalletStatusActive,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-		Transactions: make([]Transaction, 0),
-		events:       make([]domain.DomainEvent, 0),
+		UserID:        userID,
+		Balance:       0.0,
+		Status:        WalletStatusActive,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+		Transactions:  make([]Transaction, 0),
+		eventPayloads: make([]interface{}, 0),
 	}
 
 	// Add wallet created event for business wallet creation
-	aggregate.addEvent(&WalletCreatedEvent{
-		UserId:    userId,
+	aggregate.addEvent(&WalletCreatedPayload{
+		UserID:    userID,
 		CreatedAt: now,
 	})
 
@@ -120,8 +118,8 @@ func (w *WalletAggregate) AddFund(amount float64, description string) error {
 	w.Transactions = append(w.Transactions, transaction)
 
 	// Add fund added event
-	w.addEvent(&FundAddedEvent{
-		UserId:          w.UserId,
+	w.addEvent(&FundAddedPayload{
+		UserID:          w.UserID,
 		Amount:          amount,
 		PreviousBalance: previousBalance,
 		NewBalance:      w.Balance,
@@ -158,8 +156,8 @@ func (w *WalletAggregate) SubtractFund(amount float64, description string) error
 	w.Transactions = append(w.Transactions, transaction)
 
 	// Add fund subtracted event
-	w.addEvent(&FundSubtractedEvent{
-		UserId:          w.UserId,
+	w.addEvent(&FundSubtractedPayload{
+		UserID:          w.UserID,
 		Amount:          amount,
 		PreviousBalance: previousBalance,
 		NewBalance:      w.Balance,
@@ -171,12 +169,12 @@ func (w *WalletAggregate) SubtractFund(amount float64, description string) error
 }
 
 // ProcessPayment processes a payment from the wallet
-func (w *WalletAggregate) ProcessPayment(amount float64, orderId string) error {
-	return w.SubtractFund(amount, fmt.Sprintf("Payment for order: %s", orderId))
+func (w *WalletAggregate) ProcessPayment(amount float64, orderID string) error {
+	return w.SubtractFund(amount, fmt.Sprintf("Payment for order: %s", orderID))
 }
 
 // ProcessRefund processes a refund to the wallet
-func (w *WalletAggregate) ProcessRefund(amount float64, orderId string) error {
+func (w *WalletAggregate) ProcessRefund(amount float64, orderID string) error {
 	if err := w.verifyWalletStatus(); err != nil {
 		return err
 	}
@@ -192,15 +190,15 @@ func (w *WalletAggregate) ProcessRefund(amount float64, orderId string) error {
 	transaction := Transaction{
 		Type:        TransactionTypeRefund,
 		Amount:      amount,
-		Description: fmt.Sprintf("Refund for order: %s", orderId),
+		Description: fmt.Sprintf("Refund for order: %s", orderID),
 		CreatedAt:   w.UpdatedAt,
 	}
 	w.Transactions = append(w.Transactions, transaction)
 
 	// Add refund processed event
-	w.addEvent(&RefundProcessedEvent{
-		UserId:          w.UserId,
-		OrderId:         orderId,
+	w.addEvent(&RefundProcessedPayload{
+		UserID:          w.UserID,
+		OrderID:         orderID,
 		Amount:          amount,
 		PreviousBalance: previousBalance,
 		NewBalance:      w.Balance,
@@ -214,7 +212,7 @@ func (w *WalletAggregate) ProcessRefund(amount float64, orderId string) error {
 func (w *WalletAggregate) Suspend(reason string) error {
 	if w.Status == WalletStatusSuspended {
 		return &WalletStatusError{
-			UserId:    w.UserId,
+			UserID:    w.UserID,
 			Status:    int(w.Status),
 			Operation: "suspend",
 		}
@@ -224,8 +222,8 @@ func (w *WalletAggregate) Suspend(reason string) error {
 	w.Status = WalletStatusSuspended
 	w.UpdatedAt = time.Now()
 
-	w.addEvent(&WalletSuspendedEvent{
-		UserId:         w.UserId,
+	w.addEvent(&WalletSuspendedPayload{
+		UserID:         w.UserID,
 		PreviousStatus: previousStatus,
 		Reason:         reason,
 		SuspendedAt:    w.UpdatedAt,
@@ -238,7 +236,7 @@ func (w *WalletAggregate) Suspend(reason string) error {
 func (w *WalletAggregate) Activate() error {
 	if w.Status == WalletStatusActive {
 		return &WalletStatusError{
-			UserId:    w.UserId,
+			UserID:    w.UserID,
 			Status:    int(w.Status),
 			Operation: "activate",
 		}
@@ -248,8 +246,8 @@ func (w *WalletAggregate) Activate() error {
 	w.Status = WalletStatusActive
 	w.UpdatedAt = time.Now()
 
-	w.addEvent(&WalletActivatedEvent{
-		UserId:         w.UserId,
+	w.addEvent(&WalletActivatedPayload{
+		UserID:         w.UserID,
 		PreviousStatus: previousStatus,
 		ActivatedAt:    w.UpdatedAt,
 	})
@@ -267,24 +265,23 @@ func (w *WalletAggregate) GetStatus() WalletStatus {
 	return w.Status
 }
 
-// GetEvents returns and clears all domain events
-func (w *WalletAggregate) GetEvents() []domain.DomainEvent {
-	events := make([]domain.DomainEvent, len(w.events))
-	copy(events, w.events)
-	w.events = w.events[:0] // Clear events
-	return events
+// PopEventPayloads returns and clears all event payloads
+func (w *WalletAggregate) PopEventPayloads() []interface{} {
+	payloads := w.eventPayloads
+	w.eventPayloads = make([]interface{}, 0)
+	return payloads
 }
 
-// addEvent adds a domain event to the aggregate
-func (w *WalletAggregate) addEvent(event domain.DomainEvent) {
-	w.events = append(w.events, event)
+// addEvent adds an event payload to the aggregate
+func (w *WalletAggregate) addEvent(payload interface{}) {
+	w.eventPayloads = append(w.eventPayloads, payload)
 }
 
 // verifyWalletStatus checks if the wallet is in an active state
 func (w *WalletAggregate) verifyWalletStatus() error {
 	if w.Status != WalletStatusActive {
 		return &WalletStatusError{
-			UserId:    w.UserId,
+			UserID:    w.UserID,
 			Status:    int(w.Status),
 			Operation: "verify_status",
 		}
@@ -307,21 +304,11 @@ func (w *WalletAggregate) validateAmount(amount float64) error {
 func (w *WalletAggregate) validateSufficientBalance(amount float64) error {
 	if w.Balance < amount {
 		return &InsufficientBalanceError{
-			UserId:    w.UserId,
+			UserID:    w.UserID,
 			Current:   w.Balance,
 			Required:  amount,
 			Operation: "validate_balance",
 		}
 	}
 	return nil
-}
-
-// GetUncommittedEvents returns uncommitted domain events
-func (w *WalletAggregate) GetUncommittedEvents() []domain.DomainEvent {
-	return w.events
-}
-
-// MarkEventsAsCommitted clears the uncommitted events
-func (w *WalletAggregate) MarkEventsAsCommitted() {
-	w.events = []domain.DomainEvent{}
 }

@@ -7,8 +7,8 @@ import (
 
 // Domain validation errors
 var (
-	ErrEmptyBuyerId      = errors.New("buyer ID cannot be empty")
-	ErrEmptyStockId      = errors.New("stock ID cannot be empty")
+	ErrEmptyBuyerID      = errors.New("buyer ID cannot be empty")
+	ErrEmptyStockID      = errors.New("stock ID cannot be empty")
 	ErrInvalidQuantity   = errors.New("quantity must be positive")
 	ErrOrderNotConfirmed = errors.New("order cannot be confirmed")
 	ErrOrderNotCancelled = errors.New("order cannot be cancelled")
@@ -30,14 +30,14 @@ var (
 
 // InsufficientStockError provides detailed information about stock shortage
 type InsufficientStockError struct {
-	StockId   string
+	StockID   string
 	Available int
 	Requested int
 }
 
 func (e *InsufficientStockError) Error() string {
 	return fmt.Sprintf("insufficient stock for %s: available %d, requested %d",
-		e.StockId, e.Available, e.Requested)
+		e.StockID, e.Available, e.Requested)
 }
 
 func (e *InsufficientStockError) Is(target error) bool {
@@ -71,7 +71,7 @@ func (e *PaymentError) Unwrap() error {
 
 // StockError provides detailed information about stock-related failures
 type StockError struct {
-	StockId   string
+	StockID   string
 	Operation string
 	Wrapped   error
 }
@@ -79,10 +79,10 @@ type StockError struct {
 func (e *StockError) Error() string {
 	if e.Wrapped != nil {
 		return fmt.Sprintf("stock operation failed for %s (%s): %v",
-			e.StockId, e.Operation, e.Wrapped)
+			e.StockID, e.Operation, e.Wrapped)
 	}
 	return fmt.Sprintf("stock operation failed for %s (%s)",
-		e.StockId, e.Operation)
+		e.StockID, e.Operation)
 }
 
 func (e *StockError) Is(target error) bool {

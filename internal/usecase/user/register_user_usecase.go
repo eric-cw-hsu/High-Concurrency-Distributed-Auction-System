@@ -35,7 +35,7 @@ func (uc *RegisterUserUsecase) Execute(ctx context.Context, command user.Registe
 	}
 
 	userEntity := user.User{
-		Id:           uuidv7.New().String(),
+		ID:           uuidv7.New().String(),
 		Email:        command.Email,
 		Name:         command.Name,
 		PasswordHash: hashedPassword,
@@ -66,7 +66,7 @@ func (uc *RegisterUserUsecase) Execute(ctx context.Context, command user.Registe
 	}
 
 	// Create wallet for the user
-	_, err = uc.walletService.EnsureWalletExists(ctx, createdUser.Id)
+	_, err = uc.walletService.EnsureWalletExists(ctx, createdUser.ID)
 	if err != nil {
 		// Log the error but don't fail user creation
 		// In a production system, you might want to handle this differently

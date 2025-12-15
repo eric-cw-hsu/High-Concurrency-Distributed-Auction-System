@@ -12,22 +12,19 @@ func TestCreateNewWallet(t *testing.T) {
 	userId := "user-123"
 
 	wallet := CreateNewWallet(userId)
-
-	// ID might not be set by CreateNewWallet, that's ok for business operations
-	assert.Equal(t, userId, wallet.UserId)
+	assert.Equal(t, userId, wallet.UserID)
 	assert.Equal(t, 0.0, wallet.Balance)
 	assert.Equal(t, WalletStatusActive, wallet.Status)
 	assert.NotZero(t, wallet.CreatedAt)
 	assert.NotZero(t, wallet.UpdatedAt)
 	assert.Empty(t, wallet.Transactions)
 
-	// Check events
-	events := wallet.GetUncommittedEvents()
-	require.Len(t, events, 1)
-
-	event, ok := events[0].(*WalletCreatedEvent)
+	// Check event payloads
+	payloads := wallet.PopEventPayloads()
+	require.Len(t, payloads, 1)
+	event, ok := payloads[0].(*WalletCreatedPayload)
 	require.True(t, ok)
-	assert.Equal(t, userId, event.UserId)
+	assert.Equal(t, userId, event.UserID)
 }
 
 func TestWalletAggregate_AddFund(t *testing.T) {
@@ -60,14 +57,14 @@ func TestWalletAggregate_AddFund(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wallet := CreateNewWallet("user-123")
-			wallet.MarkEventsAsCommitted() // Clear creation events
+			wallet.PopEventPayloads() // Clear creation event
 
 			err := wallet.AddFund(tt.amount, tt.description)
 
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Equal(t, 0.0, wallet.Balance)
-				assert.Empty(t, wallet.GetUncommittedEvents())
+				assert.Empty(t, wallet.PopEventPayloads())
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.amount, wallet.Balance)
@@ -78,13 +75,12 @@ func TestWalletAggregate_AddFund(t *testing.T) {
 				assert.Equal(t, tt.amount, transaction.Amount)
 				assert.Equal(t, tt.description, transaction.Description)
 
-				// Check events
-				events := wallet.GetUncommittedEvents()
-				require.Len(t, events, 1)
-
-				event, ok := events[0].(*FundAddedEvent)
+				// Check event payloads
+				payloads := wallet.PopEventPayloads()
+				require.Len(t, payloads, 1)
+				event, ok := payloads[0].(*FundAddedPayload)
 				require.True(t, ok)
-				assert.Equal(t, "user-123", event.UserId)
+				assert.Equal(t, "user-123", event.UserID)
 				assert.Equal(t, tt.amount, event.Amount)
 				assert.Equal(t, tt.amount, event.NewBalance)
 			}
@@ -142,8 +138,9 @@ func TestWalletAggregate_ProcessPayment(t *testing.T) {
 			wallet := CreateNewWallet("user-123")
 			if tt.initialBalance > 0 {
 				_ = wallet.AddFund(tt.initialBalance, "Initial fund")
+				wallet.PopEventPayloads() // Clear fund event
 			}
-			wallet.MarkEventsAsCommitted() // Clear setup events
+			wallet.PopEventPayloads() // Clear creation event
 
 			err := wallet.ProcessPayment(tt.paymentAmount, tt.orderId)
 
@@ -165,13 +162,12 @@ func TestWalletAggregate_ProcessPayment(t *testing.T) {
 				}
 				assert.True(t, foundTransaction, "Payment transaction not found")
 
-				// Check events
-				events := wallet.GetUncommittedEvents()
-				require.Len(t, events, 1)
-
-				event, ok := events[0].(*FundSubtractedEvent)
+				// Check event payloads
+				payloads := wallet.PopEventPayloads()
+				require.Len(t, payloads, 1)
+				event, ok := payloads[0].(*FundSubtractedPayload)
 				require.True(t, ok)
-				assert.Equal(t, "user-123", event.UserId)
+				assert.Equal(t, "user-123", event.UserID)
 				assert.Equal(t, tt.paymentAmount, event.Amount)
 				assert.Equal(t, expectedBalance, event.NewBalance)
 			}
@@ -181,9 +177,11 @@ func TestWalletAggregate_ProcessPayment(t *testing.T) {
 
 func TestWalletAggregate_ProcessRefund(t *testing.T) {
 	wallet := CreateNewWallet("user-123")
+	wallet.PopEventPayloads() // Clear creation event
 	_ = wallet.AddFund(100.0, "Initial fund")
+	wallet.PopEventPayloads() // Clear fund event
 	_ = wallet.ProcessPayment(50.0, "order-123")
-	wallet.MarkEventsAsCommitted() // Clear setup events
+	wallet.PopEventPayloads() // Clear payment event
 
 	err := wallet.ProcessRefund(30.0, "order-123")
 
@@ -201,15 +199,14 @@ func TestWalletAggregate_ProcessRefund(t *testing.T) {
 	}
 	assert.True(t, foundTransaction, "Refund transaction not found")
 
-	// Check events
-	events := wallet.GetUncommittedEvents()
-	require.Len(t, events, 1)
-
-	event, ok := events[0].(*RefundProcessedEvent)
+	// Check event payloads
+	payloads := wallet.PopEventPayloads()
+	require.Len(t, payloads, 1)
+	event, ok := payloads[0].(*RefundProcessedPayload)
 	require.True(t, ok)
-	assert.Equal(t, "user-123", event.UserId)
+	assert.Equal(t, "user-123", event.UserID)
 	assert.Equal(t, 30.0, event.Amount)
-	assert.Equal(t, "order-123", event.OrderId)
+	assert.Equal(t, "order-123", event.OrderID)
 	assert.Equal(t, 80.0, event.NewBalance)
 }
 
@@ -236,38 +233,30 @@ func TestReconstructWalletAggregate(t *testing.T) {
 	}
 
 	wallet := ReconstructWalletAggregate(id, userId, balance, status, createdAt, updatedAt, transactions)
-
-	assert.Equal(t, id, wallet.Id)
-	assert.Equal(t, userId, wallet.UserId)
+	assert.Equal(t, id, wallet.ID)
+	assert.Equal(t, userId, wallet.UserID)
 	assert.Equal(t, balance, wallet.Balance)
 	assert.Equal(t, status, wallet.Status)
 	assert.Equal(t, createdAt, wallet.CreatedAt)
 	assert.Equal(t, updatedAt, wallet.UpdatedAt)
 	assert.Equal(t, transactions, wallet.Transactions)
-
-	// Reconstructed aggregate should not have any uncommitted events
-	assert.Empty(t, wallet.GetUncommittedEvents())
+	// Reconstructed aggregate should not have any event payloads
+	assert.Empty(t, wallet.PopEventPayloads())
 }
 
 func TestWalletAggregate_EventCommitting(t *testing.T) {
 	wallet := CreateNewWallet("user-123")
-
 	// Initially has creation event
-	events := wallet.GetUncommittedEvents()
-	assert.Len(t, events, 1)
-
-	// Mark as committed
-	wallet.MarkEventsAsCommitted()
-	events = wallet.GetUncommittedEvents()
-	assert.Empty(t, events)
-
+	payloads := wallet.PopEventPayloads()
+	assert.Len(t, payloads, 1)
+	// Pop again should be empty
+	payloads = wallet.PopEventPayloads()
+	assert.Empty(t, payloads)
 	// Add fund creates new event
 	_ = wallet.AddFund(100.0, "Test")
-	events = wallet.GetUncommittedEvents()
-	assert.Len(t, events, 1)
-
-	// Mark as committed again
-	wallet.MarkEventsAsCommitted()
-	events = wallet.GetUncommittedEvents()
-	assert.Empty(t, events)
+	payloads = wallet.PopEventPayloads()
+	assert.Len(t, payloads, 1)
+	// Pop again should be empty
+	payloads = wallet.PopEventPayloads()
+	assert.Empty(t, payloads)
 }

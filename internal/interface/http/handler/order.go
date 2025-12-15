@@ -31,7 +31,7 @@ func (h *OrderHandler) PlaceOrder(c *gin.Context) {
 		return
 	}
 
-	req.BuyerId = c.MustGet("user").(*user.User).Id
+	req.BuyerID = c.MustGet("user").(*user.User).ID
 
 	err := h.placeOrderUsecase.Execute(c.Request.Context(), req)
 	if err != nil {

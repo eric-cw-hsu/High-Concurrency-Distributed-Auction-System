@@ -20,7 +20,7 @@ func NewJWTService(jwtConfig config.JWTConfig) *JWTService {
 
 func (j *JWTService) GenerateToken(user *user.User) (string, error) {
 	claims := jwt.MapClaims{
-		"id":    user.Id,
+		"id":    user.ID,
 		"email": user.Email,
 		"name":  user.Name,
 		"iat":   time.Now().Unix(), // Issued at time
@@ -55,7 +55,7 @@ func (j *JWTService) VerifyToken(token string) (*user.User, error) {
 	}
 
 	user := &user.User{
-		Id:    claims["id"].(string),
+		ID:    claims["id"].(string),
 		Email: claims["email"].(string),
 		Name:  claims["name"].(string),
 	}

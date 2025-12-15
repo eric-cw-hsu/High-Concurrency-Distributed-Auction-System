@@ -25,7 +25,7 @@ func (h *StockHandler) PutOnMarket(c *gin.Context) {
 		return
 	}
 
-	req.SellerId = c.MustGet("user").(*user.User).Id // Assuming user ID is stored in context
+	req.SellerID = c.MustGet("user").(*user.User).ID // Assuming user ID is stored in context
 
 	if err := h.putOnMarketUsecase.Execute(c.Request.Context(), req); err != nil {
 		c.JSON(409, gin.H{"error": err.Error()})

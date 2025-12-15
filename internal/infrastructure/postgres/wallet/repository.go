@@ -41,17 +41,17 @@ func (r *PostgresWalletRepository) Save(ctx context.Context, aggregate *wallet.W
 	// Serialize transactions to JSON
 	transactionsJSON, err := json.Marshal(aggregate.Transactions)
 	if err != nil {
-		return WrapRepositoryError("marshal_transactions", aggregate.UserId, err)
+		return WrapRepositoryError("marshal_transactions", aggregate.UserID, err)
 	}
 
 	// Generate ID if not set
-	if aggregate.Id == "" {
-		aggregate.Id = fmt.Sprintf("wallet_%s", aggregate.UserId)
+	if aggregate.ID == "" {
+		aggregate.ID = fmt.Sprintf("wallet_%s", aggregate.UserID)
 	}
 
 	_, err = tx.ExecContext(ctx, query,
-		aggregate.Id,
-		aggregate.UserId,
+		aggregate.ID,
+		aggregate.UserID,
 		aggregate.Balance,
 		int(aggregate.Status),
 		aggregate.CreatedAt,
@@ -60,34 +60,34 @@ func (r *PostgresWalletRepository) Save(ctx context.Context, aggregate *wallet.W
 	)
 
 	if err != nil {
-		return WrapRepositoryError("save_wallet", aggregate.UserId, err)
+		return WrapRepositoryError("save_wallet", aggregate.UserID, err)
 	}
 
 	// Commit transaction
 	if err = tx.Commit(); err != nil {
-		return WrapRepositoryError("commit_transaction", aggregate.UserId, err)
+		return WrapRepositoryError("commit_transaction", aggregate.UserID, err)
 	}
 
 	return nil
 }
 
-// GetByUserId retrieves a wallet aggregate by user ID
-func (r *PostgresWalletRepository) GetByUserId(ctx context.Context, userId string) (*wallet.WalletAggregate, error) {
+// GetByUserID retrieves a wallet aggregate by user ID
+func (r *PostgresWalletRepository) GetByUserID(ctx context.Context, userID string) (*wallet.WalletAggregate, error) {
 	query := `SELECT id, user_id, balance, status, created_at, updated_at, transactions FROM wallets WHERE user_id = $1`
-	row := r.db.QueryRowContext(ctx, query, userId)
+	row := r.db.QueryRowContext(ctx, query, userID)
 
-	var id, userIdDB string
+	var id, userIDDB string
 	var balance float64
 	var status int
 	var createdAt, updatedAt time.Time
 	var transactionsJSON []byte
 
-	err := row.Scan(&id, &userIdDB, &balance, &status, &createdAt, &updatedAt, &transactionsJSON)
+	err := row.Scan(&id, &userIDDB, &balance, &status, &createdAt, &updatedAt, &transactionsJSON)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, WrapWalletNotFoundError(userId)
+			return nil, WrapWalletNotFoundError(userID)
 		}
-		return nil, WrapRepositoryError("scan_wallet", userId, err)
+		return nil, WrapRepositoryError("scan_wallet", userID, err)
 	}
 
 	// Deserialize transactions from JSON
@@ -95,13 +95,13 @@ func (r *PostgresWalletRepository) GetByUserId(ctx context.Context, userId strin
 	if len(transactionsJSON) > 0 {
 		err = json.Unmarshal(transactionsJSON, &transactions)
 		if err != nil {
-			return nil, WrapRepositoryError("unmarshal_transactions", userId, err)
+			return nil, WrapRepositoryError("unmarshal_transactions", userID, err)
 		}
 	}
 
 	// Reconstruct aggregate from stored data (no events should be triggered)
 	aggregate := wallet.ReconstructWalletAggregate(
-		id, userIdDB, balance, wallet.WalletStatus(status),
+		id, userIDDB, balance, wallet.WalletStatus(status),
 		createdAt, updatedAt, transactions,
 	)
 
@@ -109,9 +109,9 @@ func (r *PostgresWalletRepository) GetByUserId(ctx context.Context, userId strin
 }
 
 // CreateWallet creates a new wallet aggregate for the given user
-func (r *PostgresWalletRepository) CreateWallet(ctx context.Context, userId string) (*wallet.WalletAggregate, error) {
+func (r *PostgresWalletRepository) CreateWallet(ctx context.Context, userID string) (*wallet.WalletAggregate, error) {
 	// Create new wallet aggregate
-	aggregate := wallet.CreateNewWallet(userId)
+	aggregate := wallet.CreateNewWallet(userID)
 
 	// Save the aggregate
 	err := r.Save(ctx, aggregate)

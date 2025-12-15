@@ -5,34 +5,35 @@ import (
 	"fmt"
 
 	"eric-cw-hsu.github.io/scalable-auction-system/internal/domain/wallet"
+	"eric-cw-hsu.github.io/scalable-auction-system/internal/interface/producer"
 )
 
 type AddFundUsecase struct {
-	walletRepository wallet.WalletRepository
-	eventPublisher   wallet.EventPublisher
+	walletRepository    wallet.WalletRepository
+	walletEventProducer producer.EventProducer
 }
 
-func NewAddFundUsecase(walletRepository wallet.WalletRepository, eventPublisher wallet.EventPublisher) *AddFundUsecase {
+func NewAddFundUsecase(walletRepository wallet.WalletRepository, walletEventProducer producer.EventProducer) *AddFundUsecase {
 	return &AddFundUsecase{
-		walletRepository: walletRepository,
-		eventPublisher:   eventPublisher,
+		walletRepository:    walletRepository,
+		walletEventProducer: walletEventProducer,
 	}
 }
 
 func (uc *AddFundUsecase) Execute(ctx context.Context, command *wallet.AddFundCommand) (*wallet.WalletAggregate, error) {
 	// Get wallet aggregate
-	aggregate, err := uc.walletRepository.GetByUserId(ctx, command.UserId)
+	aggregate, err := uc.walletRepository.GetByUserID(ctx, command.UserID)
 	if err != nil {
 		return nil, &wallet.RepositoryError{
 			Operation: "get_wallet",
-			UserId:    command.UserId,
+			UserID:    command.UserID,
 			Wrapped:   err,
 		}
 	}
 
 	if aggregate == nil {
 		return nil, &wallet.WalletNotFoundError{
-			UserId: command.UserId,
+			UserID: command.UserID,
 		}
 	}
 
@@ -50,20 +51,22 @@ func (uc *AddFundUsecase) Execute(ctx context.Context, command *wallet.AddFundCo
 	if err := uc.walletRepository.Save(ctx, aggregate); err != nil {
 		return nil, &wallet.RepositoryError{
 			Operation: "save_wallet",
-			UserId:    command.UserId,
+			UserID:    command.UserID,
 			Wrapped:   err,
 		}
 	}
 
 	// Publish events
-	events := aggregate.GetEvents()
-	for _, event := range events {
-		if err := uc.eventPublisher.Publish(ctx, event); err != nil {
-			// Log error but don't fail the operation
+	for _, payload := range aggregate.PopEventPayloads() {
+		domainEvent, ok := buildWalletDomainEvent(payload)
+		if !ok {
+			continue
+		}
+
+		if err := uc.walletEventProducer.PublishEvent(ctx, domainEvent); err != nil {
 			fmt.Printf("Failed to publish event: %v\n", err)
 		}
 	}
 
-	// Return the aggregate
 	return aggregate, nil
 }

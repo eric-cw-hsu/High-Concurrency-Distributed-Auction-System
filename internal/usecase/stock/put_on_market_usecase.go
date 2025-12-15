@@ -23,11 +23,11 @@ func NewPutOnMarketUsecase(stockRepository stock.StockRepository, stockCache sto
 // It creates a new stock item, saves it to the repository, and updates the cache.
 func (uc *PutOnMarketUsecase) Execute(ctx context.Context, command stock.PutOnMarketCommand) error {
 	stockItem := stock.Stock{
-		Id:        uuidv7.New().String(),
-		ProductId: command.ProductId,
+		ID:        uuidv7.New().String(),
+		ProductID: command.ProductID,
 		Quantity:  command.Quantity,
 		Price:     command.Price,
-		SellerId:  command.SellerId,
+		SellerID:  command.SellerID,
 	}
 
 	_, err := uc.stockRepository.SaveStock(ctx, &stockItem)
@@ -36,11 +36,11 @@ func (uc *PutOnMarketUsecase) Execute(ctx context.Context, command stock.PutOnMa
 	}
 
 	// Update the stock cache
-	if err := uc.stockCache.SetStock(ctx, stockItem.Id, stockItem.Quantity); err != nil {
+	if err := uc.stockCache.SetStock(ctx, stockItem.ID, stockItem.Quantity); err != nil {
 		return err
 	}
 
-	if err := uc.stockCache.SetPrice(ctx, stockItem.Id, stockItem.Price); err != nil {
+	if err := uc.stockCache.SetPrice(ctx, stockItem.ID, stockItem.Price); err != nil {
 		return err
 	}
 

@@ -9,7 +9,9 @@ import (
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
-func NewPostgresClient(cfg config.PostgresConfig) (*sql.DB, error) {
+type PostgresClient = sql.DB
+
+func NewPostgresClient(cfg config.PostgresConfig) (*PostgresClient, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Host,

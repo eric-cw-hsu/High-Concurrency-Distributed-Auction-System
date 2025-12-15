@@ -85,28 +85,26 @@ func (suite *OrderRepositoryTestSuite) TearDownTest() {
 
 func (suite *OrderRepositoryTestSuite) TestSaveOrder_Success() {
 	// Arrange - use valid foreign keys
-	event := order.OrderPlacedEvent{
-		OrderId:    "550e8400-e29b-41d4-a716-446655440000",
-		BuyerId:    suite.testUsers[0],  // Valid user ID
-		StockId:    suite.testStocks[0], // Valid stock ID
+	orderEntity := &order.Order{
+		OrderID:    "550e8400-e29b-41d4-a716-446655440000",
+		BuyerID:    suite.testUsers[0],
+		StockID:    suite.testStocks[0],
 		Quantity:   5,
 		TotalPrice: 500.00,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		Timestamp:  time.Now(),
 	}
-
 	// Act
-	err := suite.repository.SaveOrder(suite.ctx, event)
+	err := suite.repository.SaveOrder(suite.ctx, orderEntity)
 
 	// Assert
 	assert.NoError(suite.T(), err)
 
 	// Verify the order was saved correctly
 	var savedOrder struct {
-		Id        string
-		BuyerId   string
-		StockId   string
+		OrderID   string
+		BuyerID   string
+		StockID   string
 		Price     float64
 		Quantity  int
 		CreatedAt time.Time
@@ -115,51 +113,46 @@ func (suite *OrderRepositoryTestSuite) TestSaveOrder_Success() {
 
 	query := `SELECT order_id, buyer_id, stock_id, total_price, quantity, created_at, updated_at 
 			  FROM orders WHERE order_id = $1`
-	err = suite.dbHelper.DB.QueryRowContext(suite.ctx, query, event.OrderId).Scan(
-		&savedOrder.Id,
-		&savedOrder.BuyerId,
-		&savedOrder.StockId,
+	err = suite.dbHelper.DB.QueryRowContext(suite.ctx, query, orderEntity.OrderID).Scan(
+		&savedOrder.OrderID,
+		&savedOrder.BuyerID,
+		&savedOrder.StockID,
 		&savedOrder.Price,
 		&savedOrder.Quantity,
 		&savedOrder.CreatedAt,
 		&savedOrder.UpdatedAt,
 	)
-
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), event.OrderId, savedOrder.Id)
-	assert.Equal(suite.T(), event.BuyerId, savedOrder.BuyerId)
-	assert.Equal(suite.T(), event.StockId, savedOrder.StockId)
-	assert.Equal(suite.T(), event.TotalPrice, savedOrder.Price)
-	assert.Equal(suite.T(), event.Quantity, savedOrder.Quantity)
+	assert.Equal(suite.T(), orderEntity.OrderID, savedOrder.OrderID)
+	assert.Equal(suite.T(), orderEntity.BuyerID, savedOrder.BuyerID)
+	assert.Equal(suite.T(), orderEntity.StockID, savedOrder.StockID)
+	assert.Equal(suite.T(), orderEntity.TotalPrice, savedOrder.Price)
+	assert.Equal(suite.T(), orderEntity.Quantity, savedOrder.Quantity)
 }
 
 func (suite *OrderRepositoryTestSuite) TestSaveOrder_DuplicateId() {
 	// Arrange - use valid foreign keys
-	event1 := order.OrderPlacedEvent{
-		OrderId:    "550e8400-e29b-41d4-a716-446655440001",
-		BuyerId:    suite.testUsers[0],  // Valid user ID
-		StockId:    suite.testStocks[0], // Valid stock ID
+	order1 := &order.Order{
+		OrderID:    "550e8400-e29b-41d4-a716-446655440001",
+		BuyerID:    suite.testUsers[0],
+		StockID:    suite.testStocks[0],
 		Quantity:   3,
 		TotalPrice: 300.00,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		Timestamp:  time.Now(),
 	}
-
-	event2 := order.OrderPlacedEvent{
-		OrderId:    "550e8400-e29b-41d4-a716-446655440001", // Same ID
-		BuyerId:    suite.testUsers[1],                     // Different user
-		StockId:    suite.testStocks[1],                    // Different stock
+	order2 := &order.Order{
+		OrderID:    "550e8400-e29b-41d4-a716-446655440001",
+		BuyerID:    suite.testUsers[1],
+		StockID:    suite.testStocks[1],
 		Quantity:   5,
 		TotalPrice: 500.00,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		Timestamp:  time.Now(),
 	}
-
 	// Act
-	err1 := suite.repository.SaveOrder(suite.ctx, event1)
-	err2 := suite.repository.SaveOrder(suite.ctx, event2)
+	err1 := suite.repository.SaveOrder(suite.ctx, order1)
+	err2 := suite.repository.SaveOrder(suite.ctx, order2)
 
 	// Assert
 	assert.NoError(suite.T(), err1)
@@ -168,19 +161,17 @@ func (suite *OrderRepositoryTestSuite) TestSaveOrder_DuplicateId() {
 
 func (suite *OrderRepositoryTestSuite) TestSaveOrder_LargeValues() {
 	// Arrange - use valid foreign keys
-	event := order.OrderPlacedEvent{
-		OrderId:    "550e8400-e29b-41d4-a716-446655440002",
-		BuyerId:    suite.testUsers[1],  // Valid user ID
-		StockId:    suite.testStocks[1], // Valid stock ID
+	orderEntity := &order.Order{
+		OrderID:    "550e8400-e29b-41d4-a716-446655440002",
+		BuyerID:    suite.testUsers[1],
+		StockID:    suite.testStocks[1],
 		Quantity:   1000,
 		TotalPrice: 999999.99,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		Timestamp:  time.Now(),
 	}
-
 	// Act
-	err := suite.repository.SaveOrder(suite.ctx, event)
+	err := suite.repository.SaveOrder(suite.ctx, orderEntity)
 
 	// Assert
 	assert.NoError(suite.T(), err)
@@ -189,52 +180,48 @@ func (suite *OrderRepositoryTestSuite) TestSaveOrder_LargeValues() {
 	var savedPrice float64
 	var savedQuantity int
 	query := `SELECT total_price, quantity FROM orders WHERE order_id = $1`
-	err = suite.dbHelper.DB.QueryRowContext(suite.ctx, query, event.OrderId).Scan(&savedPrice, &savedQuantity)
+	err = suite.dbHelper.DB.QueryRowContext(suite.ctx, query, orderEntity.OrderID).Scan(&savedPrice, &savedQuantity)
 
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), event.TotalPrice, savedPrice)
-	assert.Equal(suite.T(), event.Quantity, savedQuantity)
+	assert.Equal(suite.T(), orderEntity.TotalPrice, savedPrice)
+	assert.Equal(suite.T(), orderEntity.Quantity, savedQuantity)
 }
 
 func (suite *OrderRepositoryTestSuite) TestSaveOrder_MultipleOrders() {
 	// Arrange - use valid foreign keys from test data
-	buyerID := suite.testUsers[2] // Same buyer for all orders
-	events := []order.OrderPlacedEvent{
+	buyerID := suite.testUsers[2]
+	orders := []*order.Order{
 		{
-			OrderId:    "550e8400-e29b-41d4-a716-446655440003",
-			BuyerId:    buyerID,
-			StockId:    suite.testStocks[0],
+			OrderID:    "550e8400-e29b-41d4-a716-446655440003",
+			BuyerID:    buyerID,
+			StockID:    suite.testStocks[0],
 			Quantity:   2,
 			TotalPrice: 200.00,
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
-			Timestamp:  time.Now(),
 		},
 		{
-			OrderId:    "550e8400-e29b-41d4-a716-446655440004",
-			BuyerId:    buyerID,
-			StockId:    suite.testStocks[1],
+			OrderID:    "550e8400-e29b-41d4-a716-446655440004",
+			BuyerID:    buyerID,
+			StockID:    suite.testStocks[1],
 			Quantity:   3,
 			TotalPrice: 300.00,
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
-			Timestamp:  time.Now(),
 		},
 		{
-			OrderId:    "550e8400-e29b-41d4-a716-446655440005",
-			BuyerId:    buyerID,
-			StockId:    suite.testStocks[2],
+			OrderID:    "550e8400-e29b-41d4-a716-446655440005",
+			BuyerID:    buyerID,
+			StockID:    suite.testStocks[2],
 			Quantity:   1,
 			TotalPrice: 100.00,
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
-			Timestamp:  time.Now(),
 		},
 	}
-
 	// Act
-	for _, event := range events {
-		err := suite.repository.SaveOrder(suite.ctx, event)
+	for _, orderEntity := range orders {
+		err := suite.repository.SaveOrder(suite.ctx, orderEntity)
 		assert.NoError(suite.T(), err)
 	}
 
@@ -250,19 +237,17 @@ func (suite *OrderRepositoryTestSuite) TestSaveOrder_MultipleOrders() {
 
 func (suite *OrderRepositoryTestSuite) TestSaveOrder_ForeignKeyConstraint() {
 	// Arrange - test with invalid foreign keys
-	event := order.OrderPlacedEvent{
-		OrderId:    "550e8400-e29b-41d4-a716-446655440006",
-		BuyerId:    "550e8400-e29b-41d4-a716-446655440999", // Invalid buyer ID
-		StockId:    "550e8400-e29b-41d4-a716-446655440998", // Invalid stock ID
+	orderEntity := &order.Order{
+		OrderID:    "550e8400-e29b-41d4-a716-446655440006",
+		BuyerID:    "550e8400-e29b-41d4-a716-446655440999",
+		StockID:    "550e8400-e29b-41d4-a716-446655440998",
 		Quantity:   1,
 		TotalPrice: 100.00,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		Timestamp:  time.Now(),
 	}
-
 	// Act
-	err := suite.repository.SaveOrder(suite.ctx, event)
+	err := suite.repository.SaveOrder(suite.ctx, orderEntity)
 
 	// Assert
 	// Should fail due to foreign key constraint violations
@@ -272,19 +257,17 @@ func (suite *OrderRepositoryTestSuite) TestSaveOrder_ForeignKeyConstraint() {
 
 func (suite *OrderRepositoryTestSuite) TestSaveOrder_DecimalPrecision() {
 	// Arrange - test decimal precision with valid foreign keys
-	event := order.OrderPlacedEvent{
-		OrderId:    "550e8400-e29b-41d4-a716-446655440007",
-		BuyerId:    suite.testUsers[3],  // Valid user ID
-		StockId:    suite.testStocks[0], // Valid stock ID
+	orderEntity := &order.Order{
+		OrderID:    "550e8400-e29b-41d4-a716-446655440007",
+		BuyerID:    suite.testUsers[3],
+		StockID:    suite.testStocks[0],
 		Quantity:   1,
-		TotalPrice: 123.456789, // More than 2 decimal places
+		TotalPrice: 123.456789,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		Timestamp:  time.Now(),
 	}
-
 	// Act
-	err := suite.repository.SaveOrder(suite.ctx, event)
+	err := suite.repository.SaveOrder(suite.ctx, orderEntity)
 
 	// Assert
 	assert.NoError(suite.T(), err)
@@ -292,7 +275,7 @@ func (suite *OrderRepositoryTestSuite) TestSaveOrder_DecimalPrecision() {
 	// Verify decimal precision (should be rounded to 2 decimal places)
 	var savedPrice float64
 	query := `SELECT total_price FROM orders WHERE order_id = $1`
-	err = suite.dbHelper.DB.QueryRowContext(suite.ctx, query, event.OrderId).Scan(&savedPrice)
+	err = suite.dbHelper.DB.QueryRowContext(suite.ctx, query, orderEntity.OrderID).Scan(&savedPrice)
 
 	assert.NoError(suite.T(), err)
 	// PostgreSQL DECIMAL(15,2) should round to 2 decimal places
@@ -301,23 +284,20 @@ func (suite *OrderRepositoryTestSuite) TestSaveOrder_DecimalPrecision() {
 
 func (suite *OrderRepositoryTestSuite) TestRepository_ContextCancellation() {
 	// Arrange - use valid foreign keys
-	event := order.OrderPlacedEvent{
-		OrderId:    "550e8400-e29b-41d4-a716-446655440008",
-		BuyerId:    suite.testUsers[4],  // Valid user ID
-		StockId:    suite.testStocks[2], // Valid stock ID
+	orderEntity := &order.Order{
+		OrderID:    "550e8400-e29b-41d4-a716-446655440008",
+		BuyerID:    suite.testUsers[4],
+		StockID:    suite.testStocks[2],
 		Quantity:   1,
 		TotalPrice: 100.00,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		Timestamp:  time.Now(),
 	}
-
 	// Create a cancelled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
-
 	// Act
-	err := suite.repository.SaveOrder(ctx, event)
+	err := suite.repository.SaveOrder(ctx, orderEntity)
 
 	// Assert
 	assert.Error(suite.T(), err)
