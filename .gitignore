@@ -77,3 +77,7 @@ temp/
 TODO.md
 *.air.toml
 
+
+
+*.pb.go
+*_grpc.pb.go
