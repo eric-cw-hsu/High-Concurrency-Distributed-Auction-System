@@ -11,6 +11,7 @@ type Config struct {
 	Redis    RedisConfig
 	JWT      JWTConfig
 	Bcrypt   BcryptConfig
+	Logger   LoggerConfig
 }
 
 type DatabaseConfig struct {
@@ -77,5 +78,7 @@ func Load() *Config {
 		Bcrypt: BcryptConfig{
 			Cost: getEnvAsInt("BCRYPT_COST", 10),
 		},
+
+		Logger: loadLoggerConfig(),
 	}
 }

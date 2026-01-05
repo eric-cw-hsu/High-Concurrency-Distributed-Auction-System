@@ -33,7 +33,7 @@ func NewAuthService(users user.UserRepository, verifier domainSvc.PasswordVerifi
 }
 
 func (s *AuthService) Register(ctx context.Context, email string, password string) (kernel.UserID, string, string, error) {
-	existing, _ := s.users.FindByEmail(email)
+	existing, _ := s.users.FindByEmail(ctx, email)
 	if existing != nil {
 		return "", "", "", errors.New("email already in use")
 	}
@@ -46,7 +46,7 @@ func (s *AuthService) Register(ctx context.Context, email string, password strin
 	userID := s.idGenerator.NewUserID()
 	user := user.NewUserFromRegister(userID, email, hash)
 
-	if err := s.users.Save(user); err != nil {
+	if err := s.users.Save(ctx, user); err != nil {
 		return "", "", "", err
 	}
 
@@ -76,7 +76,7 @@ func (s *AuthService) Register(ctx context.Context, email string, password strin
 }
 
 func (s *AuthService) Login(ctx context.Context, email string, password string) (kernel.UserID, string, string, error) {
-	user, err := s.users.FindByEmail(email)
+	user, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
 		return "", "", "", err
 	}

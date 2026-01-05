@@ -2,24 +2,32 @@ package redis
 
 import (
 	"context"
-	"time"
 
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 )
 
 func MustConnect(addr, password string, db int) *redis.Client {
-	redisClient := redis.NewClient(&redis.Options{
+	zap.L().Info("connecting to redis",
+		zap.String("addr", addr),
+		zap.Int("db", db),
+	)
+
+	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
 		DB:       db,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		panic(err)
+	ctx := context.Background()
+	if err := client.Ping(ctx).Err(); err != nil {
+		zap.L().Fatal("failed to connect to redis",
+			zap.String("addr", addr),
+			zap.Error(err),
+		)
 	}
 
-	return redisClient
+	zap.L().Info("redis connected successfully")
+
+	return client
 }

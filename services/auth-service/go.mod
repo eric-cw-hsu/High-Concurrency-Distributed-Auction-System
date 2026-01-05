@@ -12,6 +12,8 @@ require (
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/redis/go-redis/v9 v9.17.2 // indirect
 	github.com/samborkent/uuidv7 v0.0.0-20231110121620-f2e19d87e48b // indirect
+	go.uber.org/multierr v1.10.0 // indirect
+	go.uber.org/zap v1.27.1 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
