@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/api-gateway/internal/clients"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/api-gateway/internal/config"
@@ -17,14 +18,27 @@ import (
 func main() {
 	cfg := config.Load()
 
-	authConn := grpcInfra.NewAuthConn(cfg.GRPC.AuthService)
+	authConn, err := grpcInfra.NewAuthConn(cfg.GRPC.AuthService)
+	if err != nil {
+		log.Fatalf("Failed to connect to auth service: %v", err)
+	}
+	defer authConn.Close()
+
+	productConn, err := grpcInfra.NewProductConn(cfg.GRPC.ProductService)
+	if err != nil {
+		log.Fatalf("Failed to connect to product service: %v", err)
+	}
+	defer productConn.Close()
+
 	authClient := clients.NewAuthClient(authConn)
+	productClient := clients.NewProductClient(productConn)
 
 	jwtMiddleware := middleware.NewJWTMiddleware(authpb.NewAuthServiceClient(authConn))
 
 	r := gin.New()
 	authHandler := handler.NewAuthHandler(authClient)
-	router.Register(r, authHandler, jwtMiddleware)
+	productHandler := handler.NewProductHandler(productClient)
+	router.Register(r, authHandler, jwtMiddleware, productHandler)
 
 	r.Run(fmt.Sprintf(":%s", cfg.HTTP.Port))
 }

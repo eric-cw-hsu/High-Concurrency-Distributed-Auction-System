@@ -9,7 +9,8 @@ type Config struct {
 }
 
 type GRPCConfig struct {
-	AuthService GRPCAuthConfig
+	AuthService    GRPCAuthConfig
+	ProductService GRPCProductConfig
 }
 
 type HTTPConfig struct {
@@ -17,6 +18,11 @@ type HTTPConfig struct {
 }
 
 type GRPCAuthConfig struct {
+	Host string
+	Port string
+}
+
+type GRPCProductConfig struct {
 	Host string
 	Port string
 }
@@ -30,6 +36,10 @@ func Load() *Config {
 			AuthService: GRPCAuthConfig{
 				Host: getEnv("GRPC_AUTH_SERVICE_HOST", "localhost"),
 				Port: getEnv("GRPC_AUTH_SERVICE_PORT", "50051"),
+			},
+			ProductService: GRPCProductConfig{
+				Host: getEnv("GRPC_AUTH_SERVICE_HOST", "localhost"),
+				Port: getEnv("GRPC_AUTH_SERVICE_PORT", "50052"),
 			},
 		},
 

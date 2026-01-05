@@ -10,12 +10,14 @@ func Register(
 	r *gin.Engine,
 	authHandler *handler.AuthHandler,
 	jwtMiddleware gin.HandlerFunc,
+	productHandler *handler.ProductHandler,
 ) {
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
 
 	api := r.Group("/api")
 	{
-		v1.Register(api.Group("/v1"), authHandler, jwtMiddleware)
+		v1.RegisterAuth(api.Group("/v1"), authHandler, jwtMiddleware)
+		v1.RegisterProduct(api.Group("/v1"), productHandler, jwtMiddleware)
 	}
 }

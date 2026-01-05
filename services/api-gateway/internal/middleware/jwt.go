@@ -18,7 +18,6 @@ func NewJWTMiddleware(authClient authpb.AuthServiceClient) gin.HandlerFunc {
 		}
 
 		parts := strings.SplitN(authHeader, " ", 2)
-		fmt.Println("Authorization header parts:", parts)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization header format"})
 			return
@@ -37,7 +36,7 @@ func NewJWTMiddleware(authClient authpb.AuthServiceClient) gin.HandlerFunc {
 
 		// Store user ID in context for downstream handlers
 		c.Set("userID", resp.UserId)
-		c.Set("Role", resp.Role)
+		c.Set("role", resp.Role)
 		c.Next()
 	}
 }

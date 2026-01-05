@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Register(r *gin.RouterGroup, auth *handler.AuthHandler, jwtMiddleware gin.HandlerFunc) {
+func RegisterAuth(r *gin.RouterGroup, auth *handler.AuthHandler, jwtMiddleware gin.HandlerFunc) {
 	r.POST("/register", auth.Register)
 	r.POST("/login", auth.Login)
 	r.POST("/refresh", auth.RefreshToken)

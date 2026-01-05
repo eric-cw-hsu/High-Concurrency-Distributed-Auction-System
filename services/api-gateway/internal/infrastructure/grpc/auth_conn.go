@@ -8,12 +8,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewAuthConn(cfg config.GRPCAuthConfig) *grpc.ClientConn {
+func NewAuthConn(cfg config.GRPCAuthConfig) (*grpc.ClientConn, error) {
 	address := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		panic(fmt.Sprintf("failed to connect to Auth Service at %s: %v", address, err))
-	}
-	return conn
+	return conn, err
 }
