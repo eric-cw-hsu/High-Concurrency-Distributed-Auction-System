@@ -17,6 +17,7 @@ type Config struct {
 	Kafka    KafkaConfig
 	Outbox   OutboxConfig
 	Logger   LoggerConfig
+	Snapshot SnapshotConfig
 }
 
 // Load loads configuration from environment variables
@@ -29,6 +30,7 @@ func Load() (*Config, error) {
 		Kafka:       loadKafkaConfig(),
 		Outbox:      loadOutboxConfig(),
 		Logger:      loadLoggerConfig(),
+		Snapshot:    loadSnapshotConfig(),
 	}
 
 	// Validate configuration

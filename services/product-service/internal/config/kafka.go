@@ -23,9 +23,9 @@ func loadKafkaConfig() KafkaConfig {
 
 	return KafkaConfig{
 		Brokers:              brokers,
-		ProducerTopic:        getEnv("KAFKA_PRODUCER_TOPIC", "product-events"),
-		ConsumerTopic:        getEnv("KAFKA_CONSUMER_TOPIC", "stock-events"),
-		ConsumerGroupID:      getEnv("KAFKA_CONSUMER_GROUP_ID", "product-service-consumer"),
+		ProducerTopic:        getEnv("KAFKA_PRODUCER_TOPIC", "stock-events"),
+		ConsumerTopic:        getEnv("KAFKA_CONSUMER_TOPIC", "order-events"),
+		ConsumerGroupID:      getEnv("KAFKA_CONSUMER_GROUP_ID", "stock-service-consumer"),
 		ProducerMaxAttempts:  getEnvInt("KAFKA_PRODUCER_MAX_ATTEMPTS", 3),
 		ProducerBatchSize:    getEnvInt("KAFKA_PRODUCER_BATCH_SIZE", 100),
 		ProducerBatchTimeout: getEnvDuration("KAFKA_PRODUCER_BATCH_TIMEOUT", 10*time.Millisecond),

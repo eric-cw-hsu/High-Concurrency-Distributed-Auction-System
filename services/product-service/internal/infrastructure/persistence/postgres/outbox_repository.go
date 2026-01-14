@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -17,6 +18,37 @@ type OutboxRepository struct {
 // NewOutboxRepository creates a new OutboxRepository
 func NewOutboxRepository(db *sqlx.DB) *OutboxRepository {
 	return &OutboxRepository{db: db}
+}
+
+// Insert inserts an outbox event
+func (r *OutboxRepository) Insert(ctx context.Context, event *OutboxEvent) error {
+	query := `
+		INSERT INTO outbox_events (
+			id, aggregate_type, aggregate_id, event_type, event_id,
+			payload, status, created_at, retry_count
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`
+
+	payloadJSON, err := json.Marshal(event.Payload)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.db.ExecContext(
+		ctx,
+		query,
+		event.ID,
+		event.AggregateType,
+		event.AggregateID,
+		event.EventType,
+		event.EventID,
+		payloadJSON,
+		event.Status,
+		event.CreatedAt,
+		event.RetryCount,
+	)
+
+	return err
 }
 
 // FindPending finds pending events (for outbox relay worker)

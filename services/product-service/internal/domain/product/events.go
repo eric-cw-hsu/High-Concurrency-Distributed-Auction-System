@@ -1,6 +1,8 @@
 package product
 
-import "time"
+import (
+	"time"
+)
 
 // DomainEvent is the interface for all domain events
 type DomainEvent interface {
@@ -92,4 +94,37 @@ func (e ProductSoldOutEvent) OccurredAt() time.Time {
 
 func (e ProductSoldOutEvent) EventType() string {
 	return "product.sold_out"
+}
+
+// ProductSnapshotEvent represents a complete snapshot of active products
+type ProductSnapshotEvent struct {
+	GeneratedAt      time.Time
+	ActiveProducts   []string
+	PartitionOffsets map[int]int64 // partition_id -> offset at snapshot time
+	Total            int
+	occurredAt       time.Time
+}
+
+// NewProductSnapshotEvent creates a new snapshot event
+func NewProductSnapshotEvent(
+	activeProductIDs []string,
+	partitionOffsets map[int]int64,
+	occurredAt time.Time,
+) *ProductSnapshotEvent {
+	return &ProductSnapshotEvent{
+		ActiveProducts:   activeProductIDs,
+		PartitionOffsets: partitionOffsets,
+		Total:            len(activeProductIDs),
+		occurredAt:       occurredAt,
+	}
+}
+
+// OccurredAt returns when the event occurred
+func (e ProductSnapshotEvent) OccurredAt() time.Time {
+	return e.occurredAt
+}
+
+// EventType returns the event type
+func (e ProductSnapshotEvent) EventType() string {
+	return "product.snapshot"
 }

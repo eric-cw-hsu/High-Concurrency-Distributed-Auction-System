@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/api-gateway/internal/config"
@@ -10,8 +11,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-// NewProductConnection creates a new connection to Product Service
-func NewProductConn(cfg config.GRPCProductConfig) (*grpc.ClientConn, error) {
+func MustConnect(cfg config.GRPCClientConfig) *grpc.ClientConn {
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 
 	conn, err := grpc.NewClient(
@@ -28,10 +28,11 @@ func NewProductConn(cfg config.GRPCProductConfig) (*grpc.ClientConn, error) {
 		),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to product service: %w", err)
+		fmt.Printf("failed to connect to GRPC SERVER [%s]: %w", addr, err)
+		os.Exit(1)
 	}
 
-	fmt.Printf("[ProductConnection] Connected to %s\n", addr)
+	fmt.Printf("[GRPC] Connected to %s\n", addr)
 
-	return conn, err
+	return conn
 }

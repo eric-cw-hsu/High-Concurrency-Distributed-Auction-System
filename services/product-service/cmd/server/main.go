@@ -8,10 +8,10 @@ import (
 	"syscall"
 
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/application/service"
+	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/application/worker"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/common/logger"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/config"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/infrastructure/messaging/kafka"
-	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/infrastructure/outbox"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/infrastructure/persistence/postgres"
 	grpcserver "github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/interface/grpc"
 
@@ -64,8 +64,9 @@ func main() {
 	producer := kafka.NewProducer(&cfg.Kafka)
 	defer producer.Close()
 
-	// Initialize outbox relay worker
-	outboxRelay := outbox.NewOutboxRelay(outboxRepo, producer, &cfg.Outbox)
+	// Initialize workers
+	outboxRelay := worker.NewOutboxRelay(outboxRepo, producer, &cfg.Outbox)
+	snapshotJobWorker := worker.NewSnapshotJob(productRepo, outboxRepo, cfg.Kafka.Brokers, cfg.Kafka.ProducerTopic, &cfg.Snapshot)
 
 	// Initialize Kafka consumer
 	stockEventHandler := kafka.NewStockEventHandler(productService)
@@ -91,6 +92,13 @@ func main() {
 		zap.L().Info("starting outbox cleanup worker")
 		if err := outboxRelay.StartCleanup(ctx); err != nil && ctx.Err() == nil {
 			zap.L().Error("outbox cleanup error", zap.Error(err))
+		}
+	}()
+
+	go func() {
+		zap.L().Info("starting product snapshot worker")
+		if err := snapshotJobWorker.Start(ctx); err != nil && ctx.Err() == nil {
+			zap.L().Error("product snapshot error", zap.Error(err))
 		}
 	}()
 

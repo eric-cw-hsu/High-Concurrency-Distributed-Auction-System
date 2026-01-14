@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package stock.v1;
+
+option go_package = "github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/shared/proto/stock/v1;stockv1";
+
+import "google/protobuf/timestamp.proto";
+
+// StockService provides stock and reservation management
+service StockService {
+  // Stock operations
+  rpc SetStock(SetStockRequest) returns (SetStockResponse);
+  rpc GetStock(GetStockRequest) returns (GetStockResponse);
+  
+  // Reservation operations
+  rpc Reserve(ReserveRequest) returns (ReserveResponse);
+  rpc Release(ReleaseRequest) returns (ReleaseResponse);
+  rpc GetReservation(GetReservationRequest) returns (GetReservationResponse);
+  
+  // Admin operations
+  rpc TriggerRecovery(TriggerRecoveryRequest) returns (TriggerRecoveryResponse);
+}
+
+// SetStock - Set initial stock or replenish
+message SetStockRequest {
+  string product_id = 1;
+  int32 quantity = 2;
+}
+
+message SetStockResponse {
+  Stock stock = 1;
+}
+
+// GetStock - Get current stock
+message GetStockRequest {
+  string product_id = 1;
+}
+
+message GetStockResponse {
+  Stock stock = 1;
+}
+
+// Reserve - Reserve stock for a user
+message ReserveRequest {
+  string product_id = 1;
+  string user_id = 2;
+  int32 quantity = 3;
+}
+
+message ReserveResponse {
+  Reservation reservation = 1;
+  int32 remaining_stock = 2;
+}
+
+// Release - Release a reservation (cancel)
+message ReleaseRequest {
+  string reservation_id = 1;
+}
+
+message ReleaseResponse {
+  bool success = 1;
+  int32 new_stock = 2;
+}
+
+// GetReservation - Get reservation details
+message GetReservationRequest {
+  string reservation_id = 1;
+}
+
+message GetReservationResponse {
+  Reservation reservation = 1;
+}
+
+// TriggerRecovery - Admin API to trigger Redis recovery
+message TriggerRecoveryRequest {
+  string recovery_type = 1;  // "reservations", "stock", "full"
+}
+
+message TriggerRecoveryResponse {
+  bool success = 1;
+  string message = 2;
+  int32 reservations_recovered = 3;
+}
+
+// Domain models
+
+message Stock {
+  string product_id = 1;
+  int32 quantity = 2;
+  int32 initial_quantity = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message Reservation {
+  string id = 1;
+  string product_id = 2;
+  string user_id = 3;
+  int32 quantity = 4;
+  string status = 5;
+  google.protobuf.Timestamp reserved_at = 6;
+  google.protobuf.Timestamp expired_at = 7;
+  optional string order_id = 8;
+}

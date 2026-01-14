@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/config"
-	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/infrastructure/messaging/kafka"
-	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/product-service/internal/infrastructure/persistence/postgres"
+	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/config"
+	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/infrastructure/messaging/kafka"
+	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/infrastructure/persistence/postgres"
 	"go.uber.org/zap"
 )
 

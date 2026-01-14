@@ -15,7 +15,7 @@ func loadLoggerConfig() LoggerConfig {
 		Level:       getEnv("LOG_LEVEL", "info"),
 		Format:      getEnv("LOG_FORMAT", "json"),
 		AddSource:   getEnv("LOG_ADD_SOURCE", "true") == "true",
-		Environment: getEnv("ENVIRONMENT", "development"),
+		Environment: getEnv("ENV", "development"),
 	}
 }
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/api-gateway/internal/clients"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/api-gateway/internal/config"
@@ -18,27 +17,27 @@ import (
 func main() {
 	cfg := config.Load()
 
-	authConn, err := grpcInfra.NewAuthConn(cfg.GRPC.AuthService)
-	if err != nil {
-		log.Fatalf("Failed to connect to auth service: %v", err)
-	}
+	authConn := grpcInfra.MustConnect(cfg.GRPC.AuthService)
 	defer authConn.Close()
 
-	productConn, err := grpcInfra.NewProductConn(cfg.GRPC.ProductService)
-	if err != nil {
-		log.Fatalf("Failed to connect to product service: %v", err)
-	}
+	productConn := grpcInfra.MustConnect(cfg.GRPC.ProductService)
 	defer productConn.Close()
+
+	stockConn := grpcInfra.MustConnect(cfg.GRPC.StockService)
+	defer stockConn.Close()
 
 	authClient := clients.NewAuthClient(authConn)
 	productClient := clients.NewProductClient(productConn)
+	stockClient := clients.NewStockClient(stockConn)
 
 	jwtMiddleware := middleware.NewJWTMiddleware(authpb.NewAuthServiceClient(authConn))
+	productOwnershipMiddleware := middleware.NewProductOwnershipMiddleware(productClient)
 
 	r := gin.New()
 	authHandler := handler.NewAuthHandler(authClient)
 	productHandler := handler.NewProductHandler(productClient)
-	router.Register(r, authHandler, jwtMiddleware, productHandler)
+	stockHandler := handler.NewStockHandler(stockClient)
+	router.Register(r, authHandler, jwtMiddleware, productHandler, stockHandler, productOwnershipMiddleware)
 
 	r.Run(fmt.Sprintf(":%s", cfg.HTTP.Port))
 }
