@@ -1,6 +1,9 @@
 package reservation
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type PersistentRepository interface {
 	Save(ctx context.Context, res *Reservation) error
@@ -8,4 +11,6 @@ type PersistentRepository interface {
 	UpdateStatus(ctx context.Context, id ReservationID, status ReservationStatus) error
 	FindAllActive(ctx context.Context) ([]*Reservation, error)
 	FindActiveByProductID(ctx context.Context, productID ProductID) ([]*Reservation, error)
+
+	FindExpiredWithinWindow(ctx context.Context, windowStart, windowEnd time.Time, limit int) ([]*Reservation, error)
 }

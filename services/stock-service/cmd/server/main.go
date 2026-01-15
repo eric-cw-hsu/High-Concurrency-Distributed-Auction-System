@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/application/service"
+	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/application/worker"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/common/logger"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/config"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/infrastructure/messaging/kafka"
@@ -85,9 +86,12 @@ func main() {
 	}
 
 	// Initialize application services
-	reservationPersistQueue := service.NewReservationPersistQueue(&cfg.Service)
+	reservationPersistQueue := worker.NewReservationPersistQueue(&cfg.Service)
 	stockService := service.NewStockService(&cfg.Service, stockRepo, reservationRedisRepo, reservationPostgresRepo, stockReservationCoordinator, outboxRepo, reservationPersistQueue, productStateRepo)
-	reservationPersistWorker := service.NewReservationPersistWorker(&cfg.Service, reservationPostgresRepo, reservationPersistQueue)
+
+	// Initialize background worker
+	reservationPersistWorker := worker.NewReservationPersistWorker(&cfg.Service, reservationPostgresRepo, reservationPersistQueue)
+	reservation_expire_scanner := worker.NewExpiredReservationScanner(stockService, reservationPostgresRepo, &cfg.ExpiredReservationScanner)
 
 	// Initialize Kafka producer
 	producer := kafka.NewProducer(&cfg.Kafka)
@@ -128,6 +132,13 @@ func main() {
 		zap.L().Info("starting outbox cleanup worker")
 		if err := outboxRelay.StartCleanup(ctx); err != nil && ctx.Err() == nil {
 			zap.L().Error("outbox cleanup error", zap.Error(err))
+		}
+	}()
+
+	go func() {
+		zap.L().Info("starting expired reservation scanner")
+		if err := reservation_expire_scanner.Start(ctx); err != nil && ctx.Err() == nil {
+			zap.L().Error("expired reservation scanner error", zap.Error(err))
 		}
 	}()
 

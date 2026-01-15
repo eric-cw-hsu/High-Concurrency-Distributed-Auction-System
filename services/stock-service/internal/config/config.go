@@ -12,27 +12,29 @@ type Config struct {
 	ServiceName string
 	Env         string
 
-	Kafka    KafkaConfig
-	Server   ServerConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	Outbox   OutboxConfig
-	Service  ServiceConfig
-	Logger   LoggerConfig
+	Kafka                     KafkaConfig
+	Server                    ServerConfig
+	Database                  DatabaseConfig
+	Redis                     RedisConfig
+	Outbox                    OutboxConfig
+	Service                   ServiceConfig
+	Logger                    LoggerConfig
+	ExpiredReservationScanner ExpiredReservationScannerConfig
 }
 
 // Load loads configuration from environment variables
 func Load() (*Config, error) {
 	config := &Config{
-		ServiceName: getEnv("SERVICE_NAME", "stock-service"),
-		Env:         getEnv("ENV", "local"),
-		Server:      loadServerConfig(),
-		Database:    loadDatabaseConfig(),
-		Redis:       loadRedisConfig(),
-		Outbox:      loadOutboxConfig(),
-		Service:     loadServiceConfig(),
-		Logger:      loadLoggerConfig(),
-		Kafka:       loadKafkaConfig(),
+		ServiceName:               getEnv("SERVICE_NAME", "stock-service"),
+		Env:                       getEnv("ENV", "local"),
+		Server:                    loadServerConfig(),
+		Database:                  loadDatabaseConfig(),
+		Redis:                     loadRedisConfig(),
+		Outbox:                    loadOutboxConfig(),
+		Service:                   loadServiceConfig(),
+		Logger:                    loadLoggerConfig(),
+		Kafka:                     loadKafkaConfig(),
+		ExpiredReservationScanner: loadExpiredReservationScannerConfig(),
 	}
 
 	// Validate configuration
@@ -59,6 +61,9 @@ func (c *Config) Validate() error {
 	}
 	if err := c.Kafka.Validate(); err != nil {
 		return fmt.Errorf("kafka config: %w", err)
+	}
+	if err := c.ExpiredReservationScanner.Validate(); err != nil {
+		return fmt.Errorf("expired reservation scanner config: %w", err)
 	}
 	return nil
 }

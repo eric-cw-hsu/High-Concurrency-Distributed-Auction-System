@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/common/logger"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/stock-service/internal/domain/reservation"
@@ -200,6 +201,43 @@ func (r *ReservationRepository) FindAllActive(ctx context.Context) ([]*reservati
 	logger.InfoContext(ctx, "active reservations queried",
 		zap.Int("count", len(reservations)),
 	)
+
+	return reservations, nil
+}
+
+// infrastructure/persistence/postgres/reservation_repository.go
+func (r *ReservationRepository) FindExpiredWithinWindow(
+	ctx context.Context,
+	windowStart time.Time,
+	windowEnd time.Time,
+	limit int,
+) ([]*reservation.Reservation, error) {
+	query := `
+        SELECT id, reservation_id, product_id, user_id,
+               quantity, status, reserved_at, expired_at,
+               consumed_at, released_at, order_id, created_at, updated_at
+        FROM stock_reservations
+        WHERE status = 'RESERVED'
+          AND expired_at >= $1
+          AND expired_at < $2
+        ORDER BY expired_at ASC
+        LIMIT $3
+    `
+
+	var models []ReservationModel
+	err := r.db.SelectContext(ctx, &models, query, windowStart, windowEnd, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find expired reservations: %w", err)
+	}
+
+	reservations := make([]*reservation.Reservation, 0, len(models))
+	for _, model := range models {
+		res, err := ModelToDomain(&model)
+		if err != nil {
+			continue
+		}
+		reservations = append(reservations, res)
+	}
 
 	return reservations, nil
 }
