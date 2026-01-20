@@ -36,12 +36,14 @@ func (e ProductCreatedEvent) EventType() string {
 // ProductPublishedEvent is emitted when a product is published
 type ProductPublishedEvent struct {
 	ProductID  ProductID
+	Money      Money
 	occurredAt time.Time
 }
 
-func NewProductPublishedEvent(productID ProductID, occurredAt time.Time) ProductPublishedEvent {
+func NewProductPublishedEvent(productID ProductID, money Money, occurredAt time.Time) ProductPublishedEvent {
 	return ProductPublishedEvent{
 		ProductID:  productID,
+		Money:      money,
 		occurredAt: occurredAt,
 	}
 }

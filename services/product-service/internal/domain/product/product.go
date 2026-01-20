@@ -139,7 +139,14 @@ func (p *Product) Publish() error {
 	p.status = ProductStatusActive
 	p.updatedAt = time.Now()
 
-	p.recordEvent(NewProductPublishedEvent(p.id, p.updatedAt))
+	var money Money
+	if p.pricing.flashSalePrice != nil {
+		money = *p.pricing.flashSalePrice
+	} else {
+		money = p.pricing.regularPrice
+	}
+
+	p.recordEvent(NewProductPublishedEvent(p.id, money, p.updatedAt))
 
 	return nil
 }

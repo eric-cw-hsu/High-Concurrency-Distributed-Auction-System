@@ -295,7 +295,7 @@ func (s *ProductService) GetActiveProducts(
 	ctx context.Context,
 	limit, offset int,
 ) ([]*product.Product, error) {
-	products, err := s.productRepo.FindActiveProducts(ctx, limit, offset)
+	products, err := s.productRepo.FindByStatus(ctx, product.ProductStatusActive, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query products: %w", err)
 	}

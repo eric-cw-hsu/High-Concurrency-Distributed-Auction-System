@@ -71,7 +71,7 @@ func (j *SnapshotJob) generateSnapshot(ctx context.Context) error {
 	zap.L().Info("generating product snapshot")
 
 	// Step 1: Get all active products
-	products, err := j.productRepo.FindActiveProducts(ctx, 0, 0)
+	products, err := j.productRepo.FindAllActiveProducts(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to find active products: %w", err)
 	}

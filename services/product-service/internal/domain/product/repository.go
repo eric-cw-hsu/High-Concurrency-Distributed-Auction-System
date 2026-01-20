@@ -17,8 +17,8 @@ type Repository interface {
 	// FindByStatus finds products by status with pagination
 	FindByStatus(ctx context.Context, status ProductStatus, limit, offset int) ([]*Product, error)
 
-	// FindActiveProducts finds all active products with pagination
-	FindActiveProducts(ctx context.Context, limit, offset int) ([]*Product, error)
+	// FindActiveProducts finds all active products
+	FindAllActiveProducts(ctx context.Context) ([]*Product, error)
 
 	// Delete deletes a product
 	Delete(ctx context.Context, id ProductID) error

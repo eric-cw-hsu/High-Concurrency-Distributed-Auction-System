@@ -157,11 +157,34 @@ func (r *ProductRepository) FindByStatus(
 }
 
 // FindActiveProducts finds all active products with pagination
-func (r *ProductRepository) FindActiveProducts(
+func (r *ProductRepository) FindAllActiveProducts(
 	ctx context.Context,
-	limit, offset int,
 ) ([]*product.Product, error) {
-	return r.FindByStatus(ctx, product.ProductStatusActive, limit, offset)
+	query := `
+		SELECT id, seller_id, name, description,
+			   regular_price, flash_sale_price, currency,
+			   status, stock_status, created_at, updated_at
+		FROM products
+		WHERE status = $1
+		ORDER BY created_at
+	`
+
+	var models []ProductModel
+	err := r.db.SelectContext(ctx, &models, query, string(product.ProductStatusActive))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find products by status: %w", err)
+	}
+
+	products := make([]*product.Product, 0, len(models))
+	for _, model := range models {
+		p, err := ModelToDomain(&model)
+		if err != nil {
+			return nil, err
+		}
+		products = append(products, p)
+	}
+
+	return products, nil
 }
 
 // Delete deletes a product

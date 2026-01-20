@@ -135,6 +135,8 @@ func (w *ProductTxRepository) domainEventToPayload(event product.DomainEvent) ma
 
 	case product.ProductPublishedEvent:
 		payload["product_id"] = e.ProductID.String()
+		payload["price"] = e.Money.Amount()
+		payload["currency"] = e.Money.Currency()
 
 	case product.ProductDeactivatedEvent:
 		payload["product_id"] = e.ProductID.String()
