@@ -14,6 +14,7 @@ func Register(
 	productHandler *handler.ProductHandler,
 	stockHandler *handler.StockHandler,
 	productOwnershipMiddleware *middleware.ProductOwnershipMiddleware,
+	orderHandler *handler.OrderHandler,
 ) {
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
@@ -25,6 +26,7 @@ func Register(
 			v1.RegisterAuth(v1Router, authHandler, jwtMiddleware)
 			v1.RegisterProduct(v1Router, productHandler, jwtMiddleware)
 			v1.RegisterStock(v1Router, stockHandler, jwtMiddleware, productOwnershipMiddleware)
+			v1.RegisterOrder(v1Router, orderHandler, jwtMiddleware)
 		}
 
 	}

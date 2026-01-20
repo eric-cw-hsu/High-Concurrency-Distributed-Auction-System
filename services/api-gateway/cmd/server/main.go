@@ -26,18 +26,24 @@ func main() {
 	stockConn := grpcInfra.MustConnect(cfg.GRPC.StockService)
 	defer stockConn.Close()
 
+	orderConn := grpcInfra.MustConnect(cfg.GRPC.OrderService)
+	defer orderConn.Close()
+
 	authClient := clients.NewAuthClient(authConn)
 	productClient := clients.NewProductClient(productConn)
 	stockClient := clients.NewStockClient(stockConn)
+	orderClient := clients.NewOrderClient(orderConn)
 
 	jwtMiddleware := middleware.NewJWTMiddleware(authpb.NewAuthServiceClient(authConn))
 	productOwnershipMiddleware := middleware.NewProductOwnershipMiddleware(productClient)
 
-	r := gin.New()
 	authHandler := handler.NewAuthHandler(authClient)
 	productHandler := handler.NewProductHandler(productClient)
 	stockHandler := handler.NewStockHandler(stockClient)
-	router.Register(r, authHandler, jwtMiddleware, productHandler, stockHandler, productOwnershipMiddleware)
+	orderHandler := handler.NewOrderHandler(orderClient)
+
+	r := gin.New()
+	router.Register(r, authHandler, jwtMiddleware, productHandler, stockHandler, productOwnershipMiddleware, orderHandler)
 
 	r.Run(fmt.Sprintf(":%s", cfg.HTTP.Port))
 }
