@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package order.v1;
+
+option go_package = "github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/shared/proto/order/v1;orderv1";
+
+import "google/protobuf/timestamp.proto";
+
+service OrderService {
+  // Query a single order by its ID
+  rpc GetOrder(GetOrderRequest) returns (OrderResponse);
+  
+  // List orders for a specific user with pagination
+  rpc ListUserOrders(ListUserOrdersRequest) returns (ListUserOrdersResponse);
+}
+
+// Request to retrieve a single order
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+// Request to list user orders with pagination
+message ListUserOrdersRequest {
+  string user_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+// Response for a list of orders
+message ListUserOrdersResponse {
+  repeated OrderResponse orders = 1;
+  int32 total_count = 2;
+}
+
+// Core Order representation for responses
+message OrderResponse {
+  string order_id = 1;
+  string reservation_id = 2;
+  string user_id = 3;
+  string product_id = 4;
+  int32 quantity = 5;
+  
+  // Pricing details
+  int64 unit_price = 6;
+  int64 total_price = 7;
+  string currency = 8;
+  
+  // Order status
+  string status = 9; // e.g., PENDING_PAYMENT, PAID, CANCELLED, EXPIRED
+  
+  // Payment info (if available)
+  string payment_id = 10;
+  string payment_status = 11;
+  
+  // Lifecycle timestamps
+  int64 created_at = 12; // Unix timestamp
+  int64 expires_at = 13; // Unix timestamp
+  int64 updated_at = 14; // Unix timestamp
+}
