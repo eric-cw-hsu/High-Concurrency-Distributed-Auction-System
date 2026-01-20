@@ -6,6 +6,7 @@ import "time"
 type DomainEvent interface {
 	EventType() string
 	OccurredAt() time.Time
+	ToPayload() interface{}
 }
 
 // OrderCreatedEvent is emitted when an order is created
@@ -47,6 +48,27 @@ func (e OrderCreatedEvent) OccurredAt() time.Time {
 	return e.occurredAt
 }
 
+func (e OrderCreatedEvent) ToPayload() interface{} {
+	return map[string]interface{}{
+		"order_id":       e.OrderID.String(),
+		"reservation_id": e.ReservationID.String(),
+		"user_id":        e.UserID.String(),
+		"product_id":     e.ProductID.String(),
+		"quantity":       e.Quantity,
+		"pricing": map[string]interface{}{
+			"unit_price": map[string]interface{}{
+				"amount":   e.Pricing.unitPrice.Amount(),
+				"currency": e.Pricing.unitPrice.Currency(),
+			},
+			"total_price": map[string]interface{}{
+				"amount":   e.Pricing.totalPrice.Amount(),
+				"currency": e.Pricing.totalPrice.Currency(),
+			},
+		},
+		"occurred_at": e.occurredAt,
+	}
+}
+
 // OrderPaidEvent is emitted when an order is paid
 type OrderPaidEvent struct {
 	OrderID       OrderID
@@ -80,6 +102,16 @@ func (e OrderPaidEvent) OccurredAt() time.Time {
 	return e.occurredAt
 }
 
+func (e OrderPaidEvent) ToPayload() interface{} {
+	return map[string]interface{}{
+		"order_id":       e.OrderID.String(),
+		"reservation_id": e.ReservationID.String(),
+		"payment_id":     e.PaymentID.String(),
+		"transaction_id": e.TransactionID,
+		"occurred_at":    e.occurredAt,
+	}
+}
+
 // OrderCancelledEvent is emitted when an order is cancelled
 type OrderCancelledEvent struct {
 	OrderID       OrderID
@@ -108,4 +140,13 @@ func (e OrderCancelledEvent) EventType() string {
 
 func (e OrderCancelledEvent) OccurredAt() time.Time {
 	return e.occurredAt
+}
+
+func (e OrderCancelledEvent) ToPayload() interface{} {
+	return map[string]interface{}{
+		"order_id":       e.OrderID.String(),
+		"reservation_id": e.ReservationID.String(),
+		"reason":         e.Reason,
+		"occurred_at":    e.occurredAt,
+	}
 }

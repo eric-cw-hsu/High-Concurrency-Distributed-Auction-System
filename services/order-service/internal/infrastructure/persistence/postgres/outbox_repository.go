@@ -35,7 +35,7 @@ func NewOutboxRepositoryWithTx(tx *sqlx.Tx) *OutboxRepository {
 }
 
 func (r *OutboxRepository) SaveEvent(ctx context.Context, aggregateID string, event order.DomainEvent) error {
-	payload, err := json.Marshal(event)
+	payload, err := json.Marshal(event.ToPayload())
 	if err != nil {
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
