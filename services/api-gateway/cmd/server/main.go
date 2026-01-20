@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/api-gateway/internal/clients"
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/api-gateway/internal/config"
@@ -10,11 +11,16 @@ import (
 	"github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/api-gateway/internal/router"
 	authpb "github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/shared/proto/auth/v1"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 
 	grpcInfra "github.com/eric-cw-hsu/high-concurrency-distributed-auction-system/api-gateway/internal/infrastructure/grpc"
 )
 
 func main() {
+	if os.Getenv("ENVIRONMENT") != "production" {
+		_ = godotenv.Load()
+	}
+
 	cfg := config.Load()
 
 	authConn := grpcInfra.MustConnect(cfg.GRPC.AuthService)

@@ -18,9 +18,9 @@ func MustConnect(cfg config.GRPCClientConfig) *grpc.ClientConn {
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                10 * time.Second,
-			Timeout:             3 * time.Second,
-			PermitWithoutStream: true,
+			Time:                time.Duration(cfg.KeepaliveTime) * time.Second,
+			Timeout:             time.Duration(cfg.KeepaliveTimeout) * time.Second,
+			PermitWithoutStream: cfg.PermitWithoutStream,
 		}),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(10*1024*1024), // 10MB
